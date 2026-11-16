@@ -1,14 +1,16 @@
-## What
+## Result
 
-<!-- One or two sentences: what changes and why. Link the issue if there is one. -->
+<!-- State the concrete problem and resulting behavior. -->
 
-## How it was verified
+## Verification
 
-- [ ] `npm test` passes
-- [ ] `npm run typecheck` passes
-- [ ] New or changed default `select` lists were checked with `npm run validate:selects` (`--fixture` at least; `--live` when you have credentials)
-- [ ] Tool descriptions read correctly for an AI assistant (they are shown to it verbatim)
+- [ ] `npm run verify` passed on this candidate.
+- [ ] `npm run verify:infra` passed if infrastructure changed.
+- [ ] Required staged reviews passed.
+- [ ] Affected documentation matches the implementation.
+- [ ] Hosted and legacy entry points remain separate.
 
-## Notes for the reviewer
+## Limits
 
-<!-- Anything irreversible (booking, deleting), any Exact quirk you ran into, anything you are unsure about. -->
+<!-- Distinguish local proof, deployed proof, staff checks, and owner acceptance. -->
+<!-- Never paste financial rows, credentials, raw provider errors, or private configuration. -->

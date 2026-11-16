@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { authorization, Browser, exchange, harness, INVOICE } from "./helpers.js";
@@ -35,6 +36,34 @@ describe("official MCP SDK over real local HTTP", () => {
       expect((await client.callTool({ name: "company_discovery", arguments: {} })).isError).not.toBe(true);
       expect(h.calls.filter((call) => call.path === "/api/oauth2/token")).toHaveLength(3);
     } finally { await client.close(); }
+  });
+  it("aborts active HTTP/MCP work at its single 25-second deadline before the person lease expires", async () => {
+    const h = await harness(); active.push(h);
+    const { token } = await exchange(h, await authorization(h));
+    const principal = await h.broker.authenticate(token.access_token);
+    const client = new Client({ name: "fixture-deadline", version: "1" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${h.origin}/mcp`), {
+      requestInit: { headers: { Authorization: `Bearer ${token.access_token}` } } }));
+    let releaseSource!: () => void;
+    h.fake.readBarrier = new Promise<void>((resolve) => { releaseSource = resolve; });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const started = Date.now(); const sourceStarted = once(h.exactServer, "request");
+      const pending = client.callTool({ name: "customer_search", arguments: { division: 123456, name: "Fictional" } });
+      const rejected = expect(pending).rejects.toThrow();
+      await sourceStarted;
+      await vi.advanceTimersByTimeAsync(25_001);
+      await rejected;
+      await vi.waitFor(async () => {
+        const row = await h.store.read<Record<string, number>>(`budget:person:${h.source.config.appId}:${principal.subject}`);
+        expect(Object.values(row?.value ?? {}).filter((until) => until > Date.now())).toHaveLength(0);
+      });
+      expect(Date.now()).toBeLessThan(started + 30_000);
+      expect(h.logs.some((record) => record.outcome === "deadline")).toBe(true);
+    } finally {
+      releaseSource(); h.fake.readBarrier = undefined;
+      await client.close(); vi.clearAllTimers(); vi.useRealTimers();
+    }
   });
   it("discovers exactly four tools and reads typed Exact data with a personal token", async () => {
     const h = await harness(); active.push(h);

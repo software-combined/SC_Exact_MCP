@@ -2,6 +2,7 @@ import { KMSClient, GenerateDataKeyCommand, DecryptCommand } from "@aws-sdk/clie
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { CredentialCipher, SourceTokens } from "../domain/identity.js";
+import { awsClientOptions, awsRequest } from "./aws.js";
 
 const opaque = z.string().min(1).max(16_384).regex(/^[A-Za-z0-9._~+\/=\-]+$/);
 const tokens = z.strictObject({ accessToken: opaque,
@@ -10,13 +11,12 @@ const tokens = z.strictObject({ accessToken: opaque,
 export class KmsCipher implements CredentialCipher {
   private client: KMSClient;
   constructor(private keyId: string, private app: string, region: string) {
-    this.client = new KMSClient({ region, maxAttempts: 1,
-      requestHandler: { requestTimeout: 3000, connectionTimeout: 1000 } });
+    this.client = new KMSClient({ region, ...awsClientOptions });
   }
   async seal(value: SourceTokens, context: string): Promise<string> {
     const validated = tokens.parse(value);
-    const { Plaintext, CiphertextBlob } = await this.client.send(new GenerateDataKeyCommand({ KeyId: this.keyId,
-      KeySpec: "AES_256", EncryptionContext: { app: this.app, principal: context } }));
+    const { Plaintext, CiphertextBlob } = await awsRequest((signal) => this.client.send(new GenerateDataKeyCommand({ KeyId: this.keyId,
+      KeySpec: "AES_256", EncryptionContext: { app: this.app, principal: context } }), { abortSignal: signal }));
     let plaintext: Buffer | undefined;
     try {
       if (!Plaintext || !CiphertextBlob) throw new Error("KMS returned no encryption key.");
@@ -32,8 +32,8 @@ export class KmsCipher implements CredentialCipher {
   async open(value: string, context: string): Promise<SourceTokens> {
     const envelope = z.strictObject({ key: z.string().max(8192), iv: z.string().max(24),
       tag: z.string().max(24), ciphertext: z.string().max(50_000) }).parse(JSON.parse(value));
-    const { Plaintext } = await this.client.send(new DecryptCommand({ KeyId: this.keyId,
-      CiphertextBlob: Buffer.from(envelope.key, "base64"), EncryptionContext: { app: this.app, principal: context } }));
+    const { Plaintext } = await awsRequest((signal) => this.client.send(new DecryptCommand({ KeyId: this.keyId,
+      CiphertextBlob: Buffer.from(envelope.key, "base64"), EncryptionContext: { app: this.app, principal: context } }), { abortSignal: signal }));
     if (!Plaintext) throw new Error("KMS returned no plaintext.");
     let decoded: Buffer | undefined;
     try {

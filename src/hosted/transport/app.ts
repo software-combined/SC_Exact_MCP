@@ -7,6 +7,7 @@ import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
 import { body, json } from "./http.js";
 import { hostedMcp } from "./mcp.js";
+import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 
 export interface RequestLog { requestId: string; outcome: string; status: number; durationMs: number }
 
@@ -14,6 +15,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
   log: (record: RequestLog) => void = () => {}) {
   const interactions = new Interactions(broker, store);
   const provider = broker.provider.callback();
+  const draining = new AbortController();
   const expected = new URL(broker.config.origin);
   const allowedOrigins = new Set([expected.origin, ...broker.config.clients.flatMap((client) =>
     client.redirect_uris?.map((uri) => new URL(uri).origin) ?? [])]);
@@ -26,6 +28,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
     res.setHeader("Strict-Transport-Security", "max-age=31536000");
     let outcome = "completed";
     const deadline = new AbortController();
+    const requestSignal = AbortSignal.any([deadline.signal, draining.signal]);
     const timer = setTimeout(() => { outcome = "deadline"; deadline.abort(); res.destroy(); }, 25_000);
     res.once("close", () => {
       clearTimeout(timer);
@@ -45,7 +48,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
         return json(res, 200, { resource: broker.resource, authorization_servers: [expected.origin],
           scopes_supported: ["exact.read"], bearer_methods_supported: ["header"] });
       }
-      if (url.pathname === "/exact/callback" && req.method === "GET") return await interactions.callback(req, res, url, deadline.signal);
+      if (url.pathname === "/exact/callback" && req.method === "GET") return await interactions.callback(req, res, url, requestSignal);
       const interaction = /^\/interaction\/([A-Za-z0-9_-]+)(?:\/(connect|confirm|consent))?$/.exec(url.pathname);
       if (interaction) return await interactions.handle(req, res, interaction[1], interaction[2]);
       if (url.pathname === "/mcp" || url.pathname === "/connection/disconnect") {
@@ -53,6 +56,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
         const authorization = req.headers.authorization;
         if (!authorization || !/^Bearer [A-Za-z0-9_.-]+$/.test(authorization)) throw new ServiceError("denied", "A personal SCG bearer token is required.", 401);
         const principal = await broker.authenticate(authorization.slice(7));
+        requestSignal.throwIfAborted();
         if (url.pathname === "/connection/disconnect") {
           if (req.method !== "POST") throw new ServiceError("invalid_input", "Use POST to disconnect.", 405);
           await broker.connections.disconnect(principal);
@@ -66,7 +70,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
           const request = JSON.parse(await body(req));
           if (Array.isArray(request)) throw new ServiceError("invalid_input", "Batch requests are not supported.", 400);
           transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-          server = hostedMcp(accounting, principal, deadline.signal);
+          server = hostedMcp(accounting, principal, requestSignal);
           await server.connect(transport);
           await transport.handleRequest(req, res, request);
         } finally {
@@ -87,6 +91,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
     }
   }
   const server = createServer((req, res) => { void route(req, res); });
+  server.once(SHUTDOWN_EVENT, () => draining.abort());
   server.requestTimeout = 25_000; server.headersTimeout = 10_000; server.keepAliveTimeout = 5000;
   server.maxRequestsPerSocket = 100;
   return server;

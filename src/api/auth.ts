@@ -97,7 +97,7 @@ export class ExactAuth {
     if (!this.config.clientId || !this.config.clientSecret || !this.config.refreshToken) {
       throw new Error(
         "Exact Online credentials are incomplete. Set EXACT_CLIENT_ID, EXACT_CLIENT_SECRET " +
-          "and EXACT_REFRESH_TOKEN (see docs/AUTHENTICATION.md)."
+          "and EXACT_REFRESH_TOKEN (see docs/LEGACY-CLI.md)."
       );
     }
 

@@ -41,6 +41,7 @@ describe("production deployment safety", () => {
     expect(t.Resources.Service.Properties.EnableECSManagedTags).toBe(true);
     expect(t.Resources.Service.Properties.PropagateTags).toBe("TASK_DEFINITION");
     expect(t.Resources.Task.Properties.Tags.map((tag: { Key: string }) => tag.Key)).toContain("ReviewBy");
+    expect(readFileSync("Dockerfile", "utf8")).toContain('ENTRYPOINT ["node", "dist/hosted/main.js"]');
   });
   it("provides private egress, DNS validation, an empty config secret, and retained data prerequisites", () => {
     const t = template("foundation");

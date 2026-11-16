@@ -1,28 +1,21 @@
 ---
 name: Feature request
-about: Suggest a new tool, tool group, or enhancement
+about: Suggest a bounded improvement to the SCG read service
 title: "[Feature] "
 labels: enhancement
 assignees: ""
 ---
 
-## Problem or motivation
+## User outcome
 
-What problem does this feature solve? What are you currently unable to do? Example: "I cannot create a credit note via the MCP server because..."
+Describe the staff question and why the current four operations cannot answer it.
 
-## Proposed solution
+## Proposed boundary
 
-Describe the feature you would like. If you are requesting a new tool, include:
+State the inputs, output, source permission, and result limits.
+Link the official source documentation.
 
-- Proposed tool name (e.g. `exact_subscriptions_list`)
-- The Exact Online resource it maps to (e.g. `subscription/Subscriptions`)
-- The key input parameters it should accept
-- The expected output
+## Acceptance
 
-## Alternatives considered
-
-Describe any alternative approaches or workarounds you have tried.
-
-## Additional context
-
-Links to Exact Online API documentation, screenshots, or other context that would help understand the request.
+Describe a useful, observable result with fictional examples.
+A feature request does not authorize business writes or a production change.

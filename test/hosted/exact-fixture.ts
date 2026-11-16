@@ -39,7 +39,8 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
   const access = new Map<string, string>(); const refresh = new Map<string, string>();
   const codes = new Map<string, string>();
   const fake = { user: USER_A, currentDivision: 123456, denyDivision: false, tokenStatus: 200, tokenError: "invalid_grant",
-    tokenDelay: 0, responseOverride: undefined as unknown, next: undefined as string | undefined };
+    tokenDelay: 0, responseOverride: undefined as unknown, next: undefined as string | undefined,
+    readBarrier: undefined as Promise<void> | undefined };
   const exactServer = createServer((req, res) => { void (async () => {
     const url = new URL(req.url!, "http://localhost");
     calls.push({ method: req.method!, path: url.pathname, query: url.searchParams, authorization: req.headers.authorization });
@@ -68,6 +69,7 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
     const user = access.get((req.headers.authorization ?? "").slice(7));
     if (!user) return send({ error: "unauthorized" }, 401);
     if (url.pathname === "/api/v1/current/Me") return send({ d: [{ UserID: user, CurrentDivision: fake.currentDivision, FullName: "Fictional user" }] });
+    if (fake.readBarrier) await fake.readBarrier;
     if (fake.denyDivision && url.pathname.includes("/123456/")) return send({ error: "forbidden" }, 403);
     if (fake.responseOverride !== undefined) return send(fake.responseOverride);
     if (url.pathname.endsWith("/system/Divisions")) return send({ d: [companyRow] });

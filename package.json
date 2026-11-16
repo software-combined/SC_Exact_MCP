@@ -6,8 +6,13 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx src/hosted/main.ts",
+    "start": "node dist/hosted/main.js",
+    "dev:legacy": "tsx src/index.ts",
+    "start:legacy": "node dist/index.js",
+    "start:hosted": "node dist/hosted/main.js",
+    "dev:hosted": "tsx src/hosted/main.ts",
+    "config:generate": "node scripts/create-signing-config.mjs",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
@@ -17,8 +22,8 @@
     "smoke:list": "tsx scripts/smoke-list-tools.ts",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:loc": "node scripts/check-loc.mjs",
-    "verify": "npm run check:architecture && npm run check:loc && npm run typecheck && npm test && npm run build && npm audit --omit=dev --audit-level=high",
-    "verify:infra": "node scripts/verify-infra.mjs"
+    "verify:infra": "node scripts/verify-infra.mjs",
+    "verify": "npm run check:architecture && npm run check:loc && npm run typecheck && npm test && npm run build && npm audit --omit=dev --audit-level=high"
   },
   "keywords": [
     "mcp",
@@ -37,7 +42,7 @@
     "kmo",
     "boostu"
   ],
-  "author": "BoostU Agency <nick@boostu.be> (https://boostu.be)",
+  "author": "Software Combined Group",
   "license": "MIT",
   "repository": {
     "type": "git",

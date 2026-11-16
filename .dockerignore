@@ -1,0 +1,14 @@
+.git
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/scg-exact-config*.json
+**/production-config*.json
+node_modules
+dist
+.env*
+.exact-token*
+test
+docs
+*.log
