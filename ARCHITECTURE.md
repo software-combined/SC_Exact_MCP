@@ -18,6 +18,9 @@ escape hatch. Keyed invoice reads use a validated GUID and fixed resource.
 Connection state is keyed by Exact application, region, and immutable Exact
 user ID. Client-specific grants point at that shared connection. Generation
 changes fence old access tokens, refresh tokens, consent results, and cursors.
+Replacing credentials for the same active canonical person preserves generation,
+so another AI client's consent cannot silently revoke existing client grants.
+Disconnect, reauthentication-required state, and app-epoch changes advance it.
 Every source request uses that person's current token; Exact remains the final
 permission authority, including after roles or division access change.
 
@@ -44,9 +47,13 @@ One shared app exchange gate also covers first-time code exchanges: identity is
 unknown until `current/Me` succeeds. A crash at that boundary can require an
 operator recovery affecting the app. This deliberately favors credential
 integrity over silently replaying an invalidated rotation chain.
+The same attempt receives a fresh 60-second issuance lease after preflight.
+Ownership, epoch, and remaining time are checked before a source exchange starts.
 The fixed token-and-identity pair reserves both calls in every minute and day its bounded admission can reach.
-Unused reserved calls remain spent after cancellation or rejection.
 An upstream cooldown still blocks identity validation; missing verified identity requires fail-closed reconciliation.
+Unused reserved calls remain spent after cancellation or rejection.
+Operator reconciliation requires stopping and confirming all old writers first.
+Lease expiry alone cannot prove that an old writer will not resume.
 
 Infrastructure targets production with an HTTPS load balancer and ECS Fargate.
 Frankfurt (`eu-central-1`) is selected; Ireland (`eu-west-1`) is the supported
