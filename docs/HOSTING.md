@@ -1,7 +1,7 @@
 # Hosting and operator setup
 
 Owner: Software Combined IT. Environment: production in an approved EU region.
-Frankfurt, `eu-central-1`, is the selected target. Ireland, `eu-west-1`, is the supported alternative.
+Frankfurt, `eu-central-1`, is SCG's target. A self-hosted copy can use any AWS region; see [Deploy your own copy](SELF-HOST.md).
 Status: source implementation and deployment procedure; staff qualification remains separate.
 Examples use `https://exact-mcp.example.com`.
 Keep the actual approved origin in private deployment parameters.
@@ -15,7 +15,7 @@ That test does not prove access isolation between two people.
 
 Verify the Amazon Web Services (AWS) account, effective role, explicit region, and approved scope before any platform change.
 Pass the approved region explicitly in deployment commands and private parameters.
-The runtime and workload templates reject all regions outside these two EU options.
+No template enforces a region; the approved region is the operator's recorded decision.
 The intended target is a dedicated SCG Europe account under the main billing account.
 Its account binding, name, ownership tags, and billing relationship require current owner confirmation.
 Do not assume an existing shared account is the target.
@@ -183,16 +183,18 @@ An explicit different resource is rejected.
 
 ## Prepare private configuration
 
-Generate a private draft outside the repository:
+Generate the configuration outside the repository:
 
 ```sh
-npm run config:generate -- /absolute/private/path/scg-exact-config.json
+npm run config:generate -- /absolute/private/path/scg-exact-config.json --exact-app-id <Exact app ID> [--exact-region nl]
 ```
 
-The script refuses an existing file and uses owner-only file permissions.
+The script asks for the Exact app secret with hidden input, or reads it from a pipe.
+It refuses an existing file or a path inside the repository, and uses owner-only file permissions.
 It generates signing keys, cookie keys, and client secrets without printing their values.
+It fills the fixed Claude, ChatGPT and Microsoft 365 Copilot callbacks, so the file is complete.
 It does not contact Exact or AWS.
-Replace every placeholder in a private editor before upload.
+To paste a client ID or secret into a portal, use `npm run copy:credential -- <config> <claude|chatgpt|copilot> <id|secret>`. It copies the value to the clipboard and never prints it.
 
 The configuration object has four sections:
 
@@ -215,7 +217,7 @@ Missing quotas or inconsistent settings stop startup.
 Set explicit minute and daily budgets for the app and each division.
 App budgets must allow at least eight calls in each window for the bounded public sign-in pool.
 Verify the actual Exact allowances first.
-The code supplies no quota defaults.
+The service has no quota defaults. The self-host deploy script fills cautious defaults when its settings leave them out.
 Exact documents 60 calls per app/company/minute and 5,000 per app/company/day for standard access.
 Licence-wide usage and observed response headers can impose further limits.
 Use conservative approved budgets and confirm actual headroom before increasing them.

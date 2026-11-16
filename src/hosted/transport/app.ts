@@ -89,7 +89,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
       const message = error instanceof ServiceError ? error.message : "The request could not be completed. Start again or contact IT.";
       if (!res.headersSent && (routeName === "callback" || routeName.startsWith("interaction"))) {
         // People see these steps in a browser window, so explain the next step instead of returning JSON.
-        return html(res, "Sign-in could not finish", `<p>${escapeHtml(message)}</p><p>Close this window and start again from your AI app. If it happens again, contact Software Combined IT.</p><p class="note">Reference: ${requestId}</p>`, [], status);
+        return html(res, "Sign-in could not finish", `<p>${escapeHtml(message)}</p><p>Close this window and start again from your AI app. If it happens again, contact your IT team.</p><p class="note">Reference: ${requestId}</p>`, [], status);
       }
       if (status === 401) res.setHeader("WWW-Authenticate",
         `Bearer resource_metadata="${expected.origin}/.well-known/oauth-protected-resource/mcp", scope="exact.read"`);

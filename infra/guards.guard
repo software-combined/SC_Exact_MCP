@@ -5,7 +5,6 @@ let trails = Resources.*[ Type == 'AWS::CloudTrail::Trail' ]
 let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
 let repositories = Resources.*[ Type == 'AWS::ECR::Repository' ]
 rule fargate_task when %tasks !empty {
-  Rules.ApprovedEuropeOnly exists
   %tasks.Properties.NetworkMode == 'awsvpc'
   %tasks.Properties.ContainerDefinitions[*].ReadonlyRootFilesystem == true
   %tasks.Properties.ContainerDefinitions[*].User == 'node'

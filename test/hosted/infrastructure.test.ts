@@ -24,9 +24,8 @@ describe("production deployment safety", () => {
     const allowedImage = new RegExp(t.Parameters.ImageUri.AllowedPattern);
     expect(allowedImage.test(image("eu-central-1"))).toBe(true);
     expect(allowedImage.test(image("eu-west-1"))).toBe(true);
-    expect(allowedImage.test(image("us-east-1"))).toBe(false);
-    expect(JSON.stringify(t.Rules.ApprovedEuropeOnly.Assertions)).toContain("eu-central-1");
-    expect(JSON.stringify(t.Rules.ApprovedEuropeOnly.Assertions)).toContain("eu-west-1");
+    expect(allowedImage.test(image("ap-southeast-2"))).toBe(true);
+    expect(allowedImage.test(`123456789012.dkr.ecr.eu-west-1.amazonaws.com/fixture:latest`)).toBe(false);
     const executionActions = JSON.stringify(t.Resources.ExecutionRole.Properties.Policies);
     expect(executionActions).not.toContain("secretsmanager:GetSecretValue");
     const taskActions = JSON.stringify(t.Resources.TaskRole.Properties.Policies);
@@ -76,6 +75,6 @@ describe("production deployment safety", () => {
     expect(t.Resources.AuditBucket.DeletionPolicy).toBe("Retain");
     expect(t.Resources.AuditBucketPolicy.DeletionPolicy).toBe("Retain");
     expect(t.Resources.AuditBucketPolicy.UpdateReplacePolicy).toBe("Retain");
-    expect(t.Rules.DedicatedAccountOnly.Assertions).toHaveLength(3);
+    expect(t.Rules.DedicatedAccountOnly.Assertions).toHaveLength(2);
   });
 });

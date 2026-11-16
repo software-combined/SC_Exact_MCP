@@ -10,8 +10,6 @@ Rules:
         AssertDescription: The current account must match the verified dedicated target.
       - Assert: !Not [!Equals [!Ref TargetAccountId, !Ref ManagementAccountId]]
         AssertDescription: Do not deploy this new-account baseline in the management account.
-      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
-        AssertDescription: Create the trail home only in Frankfurt or Ireland.
 Resources:
   AuditKey:
     Type: AWS::KMS::Key

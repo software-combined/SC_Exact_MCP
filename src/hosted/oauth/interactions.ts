@@ -59,7 +59,7 @@ export class Interactions {
       if (candidate && candidate.value.generation !== connection.generation) throw new ServiceError("denied", "The connection changed. Start sign-in again.", 400);
       const prompt = details.prompt.name === "login" ? "confirm" : "consent";
       return this.form(res, uid, prompt, "Allow read-only access",
-        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, sales invoices and receivables? This service only reads; it cannot change anything in Exact.</p><p class="note">Not you? Close this window and contact Software Combined IT.</p>`,
+        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, sales invoices and receivables? This service only reads; it cannot change anything in Exact.</p><p class="note">Not you? Close this window and contact your IT team.</p>`,
         "Allow read-only access", origins);
     }
     if (req.method !== "POST" || !action || !["connect", "confirm", "consent"].includes(action)) {

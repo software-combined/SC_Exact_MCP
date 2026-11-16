@@ -9,6 +9,7 @@ Start with the document for your task.
 | --- | --- |
 | Guided pilot, staff connection, and everyday questions | [Staff guide](USER-GUIDE.md) |
 | Data access, privacy, and how the service works | [Security questions](FAQ.md) |
+| Running your own copy in your own AWS account | [Deploy your own copy](SELF-HOST.md) |
 | Operator setup and rollout | [Hosting guide](HOSTING.md) |
 | Errors, disconnect, and revoking all connections | [Operations guide](OPERATIONS.md) |
 | Local proof and remaining acceptance gates | [Qualification](QUALIFICATION.md) |
@@ -23,6 +24,7 @@ Each subject has one owner document.
 The root README is the public entry point.
 The staff guide contains staff steps, not infrastructure commands.
 The hosting guide owns runtime configuration and deployment prerequisites.
+The self-host guide is the step-by-step path for one company; it links to the hosting guide for detail.
 Qualification records distinguish local tests from real staff acceptance.
 
 Documentation uses simple technical English, guided by the sentence principles of ASD-STE100 (Simplified Technical English).

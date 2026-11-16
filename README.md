@@ -27,6 +27,7 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | A staff member who wants to use it | [Staff guide](docs/USER-GUIDE.md) | About 5 minutes. Nothing to install. |
 | Asking whether it is safe | [Security questions](docs/FAQ.md) | About 10 minutes |
 | IT, connecting an AI assistant | [Hosting guide: connect an AI assistant](docs/HOSTING.md#register-three-ai-clients) | About 30 minutes per assistant |
+| IT at another company, running your own copy | [Deploy your own copy](docs/SELF-HOST.md) | About 2 hours |
 | IT, running or recovering the service | [Hosting guide](docs/HOSTING.md) and [operations guide](docs/OPERATIONS.md) | |
 | A developer | [Developers](#developers) below | |
 
