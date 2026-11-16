@@ -125,6 +125,29 @@ describe("OAuth isolation and revocation", () => {
     expect(refresh.status).toBeGreaterThanOrEqual(400);
   });
 
+  it("accepts Exact user GUIDs without RFC version or variant bits", async () => {
+    const h = await harness(); active.push(h);
+    h.fake.user = "A2E51D82-3B8D-E611-80C2-00155D010A07";
+    const { token } = await exchange(h, await authorization(h));
+    expect((await h.broker.authenticate(token.access_token)).subject).toBe("nl:a2e51d82-3b8d-e611-80c2-00155d010a07");
+  });
+
+  it("explains a failed sign-in in the browser and logs only the failing step", async () => {
+    const h = await harness(); active.push(h);
+    h.fake.user = "not-an-exact-guid";
+    const browser = new Browser(h.origin);
+    const page = await browser.follow(await browser.request("/auth?client_id=claude&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fclaude%2Fcallback&scope=exact.read&code_challenge=1111111111111111111111111111111111111111111&code_challenge_method=S256"));
+    const exactRedirect = await browser.request((await browser.submit(page)).headers.get("location")!);
+    const failed = await browser.request(exactRedirect.headers.get("location")!);
+    expect(failed.status).toBe(401);
+    expect(failed.headers.get("Content-Type")).toContain("text/html");
+    const markup = await failed.text();
+    expect(markup).toContain("Sign-in could not finish");
+    expect(markup).not.toContain("not-an-exact-guid");
+    await vi.waitFor(() => expect(h.logs.at(-1)).toMatchObject({ route: "callback", outcome: "reauth_required",
+      detail: "connect:identity:reauth_required" }));
+  });
+
   it("binds Exact state to the initiating browser and consumes it exactly once", async () => {
     const h = await harness(); active.push(h);
     const browser = new Browser(h.origin);

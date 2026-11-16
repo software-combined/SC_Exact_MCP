@@ -16,10 +16,10 @@ export class Interactions {
     const values = (req.headers.cookie ?? "").split(";").map((v) => v.trim()).filter((v) => v.startsWith("scg-exact="));
     return values.length === 1 ? values[0].slice("scg-exact=".length) : "";
   }
-  private async form(res: ServerResponse, uid: string, action: string, text: string, label: string, origins: string[]) {
+  private async form(res: ServerResponse, uid: string, action: string, title: string, content: string, label: string, origins: string[]) {
     const nonce = random();
     await this.store.write(`form:${nonce}`, { payload: { uid, action } }, undefined, Date.now() + 600_000);
-    html(res, "SCG Exact personal connection", `<p>${text}</p><form method="post" action="/interaction/${encodeURIComponent(uid)}/${action}"><input type="hidden" name="nonce" value="${nonce}"><button>${escapeHtml(label)}</button></form>`, origins);
+    html(res, title, `${content}<form method="post" action="/interaction/${encodeURIComponent(uid)}/${action}"><input type="hidden" name="nonce" value="${nonce}"><button>${escapeHtml(label)}</button></form>`, origins);
   }
   async callback(req: IncomingMessage, res: ServerResponse, url: URL, signal?: AbortSignal) {
     const state = url.searchParams.get("state");
@@ -54,12 +54,13 @@ export class Interactions {
     if (!client) throw new ServiceError("denied", "Unknown client.", 400);
     const origins = [this.broker.connections.source.origin, ...(client.redirect_uris?.map((uri) => new URL(uri).origin) ?? [])];
     if (req.method === "GET" && !action) {
-      if (!accountId) return this.form(res, uid, "connect", "Sign in to your own Exact account. Current Exact permissions determine the companies and data you can read. The SCG service never shares another person's connection.", "Connect personal Exact account", origins);
+      if (!accountId) return this.form(res, uid, "connect", "Connect Exact Online", "<p>Sign in with your own Exact account. You see only the companies and data that account can open.</p>", "Continue to Exact", origins);
       const connection = await this.broker.connections.active(accountId);
       if (candidate && candidate.value.generation !== connection.generation) throw new ServiceError("denied", "The connection changed. Start sign-in again.", 400);
-      const who = `${escapeHtml(connection.displayName)} (${escapeHtml(connection.subject)})`;
       const prompt = details.prompt.name === "login" ? "confirm" : "consent";
-      return this.form(res, uid, prompt, `Exact user: ${who}. Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, sales invoices, and receivables using this personal connection? Source records cannot be changed. If this is the wrong account, cancel the connection and ask IT to help you switch accounts. Do not confirm another person's Exact account.`, "Continue with this Exact user", origins);
+      return this.form(res, uid, prompt, "Allow read-only access",
+        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, sales invoices and receivables? Nothing in Exact can be changed.</p><p class="note">Not you? Close this window and contact Software Combined IT.</p>`,
+        "Allow read-only access", origins);
     }
     if (req.method !== "POST" || !action || !["connect", "confirm", "consent"].includes(action)) {
       throw new ServiceError("invalid_input", "Unsupported interaction action.", 400);

@@ -26,6 +26,16 @@ describe("fixed reads and source integrity", () => {
     await expect(h.accounting.read("invoice_lookup", { division: 123456, invoiceId: INVOICE }, h.principal, h.signal)).rejects.toMatchObject({ code: "denied" });
     expect(h.calls.filter((v) => v.path.includes("/salesinvoice/"))).toHaveLength(1);
   });
+  it("reads and filters Exact record GUIDs without RFC version or variant bits", async () => {
+    const h = await setup(); const id = "a2e51d82-3b8d-e611-80c2-00155d010a07"; h.fake.rowId = id;
+    expect((await h.accounting.read("invoice_lookup", { division: 123456, invoiceId: id }, h.principal, h.signal)).rows[0])
+      .toMatchObject({ id });
+    expect(h.calls.at(-1)?.path).toContain(`guid'${id}'`);
+    expect((await h.accounting.read("customer_search", { division: 123456, code: "C001" }, h.principal, h.signal)).rows[0])
+      .toMatchObject({ id });
+    expect((await h.accounting.read("receivables", { division: 123456, customerId: id }, h.principal, h.signal)).rows[0])
+      .toMatchObject({ customerId: id });
+  });
   it("uses current balances and row currency without inventing a total or a historical balance", async () => {
     const h = await setup();
     const result = await h.accounting.read("receivables", { division: 123456, overdueBefore: "2026-01-31" }, h.principal, h.signal);

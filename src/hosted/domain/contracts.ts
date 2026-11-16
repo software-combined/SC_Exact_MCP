@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const division = z.number().int().positive().max(2_147_483_647);
 const cursor = z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional();
-const guid = z.string().uuid();
+const guid = z.guid();
 const date = z.iso.date();
 const amount = z.number().finite();
 const currency = z.string().regex(/^[A-Z]{3}$/);

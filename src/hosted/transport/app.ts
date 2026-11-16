@@ -5,11 +5,11 @@ import { ServiceError, type StateStore } from "../domain/identity.js";
 import type { Broker } from "../oauth/broker.js";
 import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
-import { body, json } from "./http.js";
+import { body, escapeHtml, html, json } from "./http.js";
 import { hostedMcp } from "./mcp.js";
 import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 
-export interface RequestLog { requestId: string; outcome: string; status: number; durationMs: number }
+export interface RequestLog { requestId: string; route: string; outcome: string; status: number; durationMs: number; detail?: string }
 
 export function hostedApp(broker: Broker, accounting: Accounting, store: StateStore,
   log: (record: RequestLog) => void = () => {}) {
@@ -26,32 +26,34 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("Strict-Transport-Security", "max-age=31536000");
-    let outcome = "completed";
+    let outcome = "completed"; let routeName = "provider"; let detail: string | undefined;
     const deadline = new AbortController();
     const requestSignal = AbortSignal.any([deadline.signal, draining.signal]);
     const timer = setTimeout(() => { outcome = "deadline"; deadline.abort(); res.destroy(); }, 25_000);
     res.once("close", () => {
       clearTimeout(timer);
       if (!res.writableEnded) { deadline.abort(); if (outcome === "completed") outcome = "cancelled"; }
-      log({ requestId, outcome, status: res.statusCode, durationMs: Date.now() - started });
+      log({ requestId, route: routeName, outcome, status: res.statusCode, durationMs: Date.now() - started, ...(detail ? { detail } : {}) });
     });
     try {
       const url = new URL(req.url ?? "/", expected);
-      if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { status: "ready" });
+      if (url.pathname === "/health" && req.method === "GET") { routeName = "health"; return json(res, 200, { status: "ready" }); }
       if (req.headers.host !== expected.host || url.origin !== expected.origin) throw new ServiceError("denied", "Invalid service host.", 400);
       if (expected.protocol === "https:" && req.headers["x-forwarded-proto"] !== "https") {
         throw new ServiceError("denied", "HTTPS is required.", 400);
       }
       if (url.pathname === "/.well-known/oauth-protected-resource/mcp" || url.pathname === "/.well-known/oauth-protected-resource") {
+        routeName = "metadata";
         if (req.method !== "GET") throw new ServiceError("invalid_input", "Use GET for metadata.", 405);
         res.setHeader("Access-Control-Allow-Origin", "*");
         return json(res, 200, { resource: broker.resource, authorization_servers: [expected.origin],
           scopes_supported: ["exact.read"], bearer_methods_supported: ["header"] });
       }
-      if (url.pathname === "/exact/callback" && req.method === "GET") return await interactions.callback(req, res, url, requestSignal);
+      if (url.pathname === "/exact/callback" && req.method === "GET") { routeName = "callback"; return await interactions.callback(req, res, url, requestSignal); }
       const interaction = /^\/interaction\/([A-Za-z0-9_-]+)(?:\/(connect|confirm|consent))?$/.exec(url.pathname);
-      if (interaction) return await interactions.handle(req, res, interaction[1], interaction[2]);
+      if (interaction) { routeName = interaction[2] ? `interaction-${interaction[2]}` : "interaction"; return await interactions.handle(req, res, interaction[1], interaction[2]); }
       if (url.pathname === "/mcp" || url.pathname === "/connection/disconnect") {
+        routeName = url.pathname === "/mcp" ? "mcp" : "disconnect";
         if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new ServiceError("denied", "This Origin is not registered.", 403);
         const authorization = req.headers.authorization;
         if (!authorization || !/^Bearer [A-Za-z0-9_.-]+$/.test(authorization)) throw new ServiceError("denied", "A personal SCG bearer token is required.", 401);
@@ -82,11 +84,16 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
       return provider(req, res);
     } catch (error) {
       outcome = error instanceof ServiceError ? error.code : "unavailable";
+      detail = error instanceof ServiceError ? error.detail : (error as Error)?.name;
       const status = error instanceof ServiceError ? error.status : error instanceof SyntaxError ? 400 : 503;
+      const message = error instanceof ServiceError ? error.message : "The request could not be completed. Start again or contact IT.";
+      if (!res.headersSent && (routeName === "callback" || routeName.startsWith("interaction"))) {
+        // People see these steps in a browser window, so explain the next step instead of returning JSON.
+        return html(res, "Sign-in could not finish", `<p>${escapeHtml(message)}</p><p>Close this window and start again from your AI app. If it happens again, contact Software Combined IT.</p><p class="note">Reference: ${requestId}</p>`, [], status);
+      }
       if (status === 401) res.setHeader("WWW-Authenticate",
         `Bearer resource_metadata="${expected.origin}/.well-known/oauth-protected-resource/mcp", scope="exact.read"`);
-      if (!res.headersSent) json(res, status, { error: outcome,
-        message: error instanceof ServiceError ? error.message : "The request could not be completed. Start again or contact IT.", requestId });
+      if (!res.headersSent) json(res, status, { error: outcome, message, requestId });
       else if (!res.writableEnded) res.end();
     }
   }
