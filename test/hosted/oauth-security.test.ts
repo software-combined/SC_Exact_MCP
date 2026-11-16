@@ -31,11 +31,7 @@ describe("OAuth isolation and revocation", () => {
     const page = await h.accounting.read("customer_search", query, principal, AbortSignal.timeout(1000));
     h.fake.next = undefined;
     if (reset === "disconnect") await h.connections.disconnect(principal);
-    else {
-      await h.connections.gate.acquire();
-      const now = Date.now(); const clock = vi.spyOn(Date, "now").mockReturnValue(now + 30_001);
-      try { await h.connections.gate.reconcileExpired(); } finally { clock.mockRestore(); }
-    }
+    else await h.connections.gate.revokeAll();
     await expect(h.broker.authenticate(a.access_token)).rejects.toThrow();
     await expect(h.broker.authenticate(b.access_token)).rejects.toThrow();
     const reconnected = await exchange(h, await authorization(h, "claude", first.browser));
@@ -139,12 +135,12 @@ describe("OAuth isolation and revocation", () => {
     const page = await browser.follow(await browser.request("/auth?client_id=claude&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fclaude%2Fcallback&scope=exact.read&code_challenge=1111111111111111111111111111111111111111111&code_challenge_method=S256"));
     const exactRedirect = await browser.request((await browser.submit(page)).headers.get("location")!);
     const failed = await browser.request(exactRedirect.headers.get("location")!);
-    expect(failed.status).toBe(401);
+    expect(failed.status).toBe(503);
     expect(failed.headers.get("Content-Type")).toContain("text/html");
     const markup = await failed.text();
     expect(markup).toContain("Sign-in could not finish");
     expect(markup).not.toContain("not-an-exact-guid");
-    await vi.waitFor(() => expect(h.logs.at(-1)).toMatchObject({ route: "callback", outcome: "reauth_required",
+    await vi.waitFor(() => expect(h.logs.at(-1)).toMatchObject({ route: "callback", outcome: "unavailable",
       detail: "connect:identity:reauth_required" }));
   });
 

@@ -11,7 +11,7 @@ export class Connections {
   }
   key(id: string) { return connectionKey(this.source.config.appId, id); }
   async active(id: string): Promise<Connection> {
-    const epoch = await this.gate.assertReadable();
+    const epoch = await this.gate.epoch();
     const row = await this.store.read<Connection>(this.key(id));
     if (!row || row.value.status !== "active" || row.value.appEpoch !== epoch || row.value.subject !== id) {
       throw new ServiceError("reauth_required", "This personal Exact connection needs to reconnect.", 401);
@@ -25,7 +25,7 @@ export class Connections {
   }
   async connect(code: string, caller?: AbortSignal): Promise<Connection> {
     let lease = await this.gate.acquire();
-    let started = false; let exchanged = false; let stage = "prepare";
+    let started = false; let stage = "prepare";
     try {
       caller?.throwIfAborted();
       const exchange = await this.source.prepareExchange();
@@ -36,7 +36,7 @@ export class Connections {
       const independent = AbortSignal.timeout(15_000);
       started = true; stage = "exchange";
       const tokens = await exchange.exchange("code", code, independent);
-      exchanged = true; stage = "identity";
+      stage = "identity";
       const me = await exchange.me(tokens.accessToken, independent);
       stage = "persist";
       const id = subject(this.source.config.region, me.UserID);
@@ -49,18 +49,13 @@ export class Connections {
         credentials: await this.cipher.seal(tokens, this.key(id)), expiresAt: tokens.expiresAt };
       if (!await this.store.write(this.key(id), value, old?.version)) throw new Error("Connection changed during exchange.");
       await this.readback(value);
-      await this.gate.complete(lease);
       return value;
     } catch (error) {
-      if (!started || (!exchanged && (error instanceof ExchangeRejected || (error instanceof ServiceError && error.code === "limited")))) {
-        await this.gate.complete(lease);
-        throw error;
-      }
-      await this.gate.uncertain(lease);
-      const cause = error instanceof ServiceError ? error.code : (error as Error)?.name ?? "unknown";
-      throw new ServiceError("reauth_required", "Exact sign-in could not be saved safely. Contact Software Combined IT before you try again.",
-        401, `connect:${stage}:${cause}`);
-    }
+      // A failed new sign-in leaves no saved credential at risk, so the person can simply try again.
+      if (!started || error instanceof ExchangeRejected || (error instanceof ServiceError && error.code === "limited")) throw error;
+      throw new ServiceError("unavailable", "Exact sign-in did not finish. Close this window and try again.", 503,
+        `connect:${stage}:${causeOf(error)}`);
+    } finally { await this.gate.complete(lease); }
   }
   private async readback(value: Connection) {
     const stored = await this.store.read<Connection>(this.key(value.subject));
@@ -74,7 +69,7 @@ export class Connections {
       return (await this.cipher.open(initial.credentials, this.key(principal.subject))).accessToken;
     }
     let lease = await this.gate.acquire();
-    let started = false; let exchanged = false;
+    let started = false; let exchanged = false; let stage = "prepare";
     try {
       // Re-read after the shared lock: another replica may have rotated first.
       const current = await this.store.read<Connection>(this.key(principal.subject));
@@ -82,7 +77,6 @@ export class Connections {
       if (!current || current.value.credentials !== connection.credentials) throw new Error("Connection conflict.");
       if (connection.expiresAt > Date.now() + 30_000) {
         const tokens = await this.cipher.open(connection.credentials, this.key(principal.subject));
-        await this.gate.complete(lease);
         return tokens.accessToken;
       }
       const previous = await this.cipher.open(connection.credentials, this.key(principal.subject));
@@ -97,33 +91,32 @@ export class Connections {
       await this.gate.assertIssuing(lease);
       caller?.throwIfAborted();
       const independent = AbortSignal.timeout(15_000);
-      started = true;
+      started = true; stage = "exchange";
       const tokens = await exchange.exchange("refresh", previous.refreshToken, independent);
-      exchanged = true;
+      exchanged = true; stage = "persist";
       const me = await exchange.me(tokens.accessToken, independent);
       if (subject(connection.region, me.UserID) !== connection.subject) throw new Error("Exact identity changed.");
       const value: Connection = { ...connection, currentDivision: me.CurrentDivision, displayName: me.FullName,
         credentials: await this.cipher.seal(tokens, this.key(principal.subject)), expiresAt: tokens.expiresAt };
       if (!await this.store.write(this.key(principal.subject), value, current.version)) throw new Error("Connection changed during rotation.");
       await this.readback(value);
-      await this.gate.complete(lease);
       return tokens.accessToken;
     } catch (error) {
-      if (!started || (!exchanged && (error instanceof ExchangeRejected || (error instanceof ServiceError && error.code === "limited")))) {
-        if (error instanceof ExchangeRejected && error.credentialsInvalid) {
-          const old = await this.store.read<Connection>(this.key(principal.subject));
-          if (!old || !await this.store.write(this.key(principal.subject), { ...old.value, status: "reauth_required",
-            generation: old.value.generation + 1, credentials: "" }, old.version)) {
-            await this.gate.uncertain(lease);
-            throw new ServiceError("reauth_required", "Credential rejection could not be persisted. Contact Software Combined IT.", 401);
-          }
-        }
-        await this.gate.complete(lease);
-        throw error;
-      }
-      await this.gate.uncertain(lease);
-      throw new ServiceError("reauth_required", "Exact token rotation is uncertain. Contact Software Combined IT before you reconnect.", 401);
-    }
+      const retryable = !started || (!exchanged && (error instanceof ExchangeRejected ? !error.credentialsInvalid :
+        error instanceof ServiceError && error.code === "limited"));
+      // Only this person is affected: their saved token may be stale, so they sign in again. Nobody else waits on IT.
+      if (!retryable) await this.requireSignIn(principal.subject);
+      if (retryable || error instanceof ExchangeRejected) throw error;
+      throw new ServiceError("reauth_required", "Your Exact access needs a fresh sign-in. Sign in again from your AI app.", 401,
+        `refresh:${stage}:${causeOf(error)}`);
+    } finally { await this.gate.complete(lease); }
+  }
+  /** Best effort: if this write fails, Exact refuses the stale token on the next refresh and this runs again. */
+  private async requireSignIn(id: string) {
+    const old = await this.store.read<Connection>(this.key(id)).catch(() => undefined);
+    if (old?.value.status !== "active") return;
+    await this.store.write(this.key(id), { ...old.value, status: "reauth_required", generation: old.value.generation + 1,
+      credentials: "" }, old.version).catch(() => undefined);
   }
   async disconnect(principal: Principal) {
     const lease = await this.gate.acquire();
@@ -137,3 +130,5 @@ export class Connections {
     } finally { await this.gate.complete(lease); }
   }
 }
+
+const causeOf = (error: unknown) => error instanceof ServiceError ? error.code : (error as Error)?.name ?? "unknown";

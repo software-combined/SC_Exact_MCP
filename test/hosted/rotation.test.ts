@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { once } from "node:events";
 import { exactFixture as harness, USER_A, USER_B } from "./exact-fixture.js";
 import { Connections } from "../../src/hosted/runtime/connections.js";
+import { ExchangeGate } from "../../src/hosted/runtime/exchanges.js";
 import type { Connection, Principal } from "../../src/hosted/domain/identity.js";
 import type { Limits } from "../../src/hosted/runtime/budgets.js";
 
@@ -34,7 +35,7 @@ describe("shared rotating source credentials", () => {
     const before = h.calls.length;
     await expect(h.connections.access(h.principal)).rejects.toMatchObject({ code: issued ? "reauth_required" : "limited" });
     const gate = await h.connections.gate.status();
-    expect(Boolean(gate.uncertain)).toBe(issued); expect(Boolean(gate.attempt)).toBe(issued);
+    expect(gate.attempt).toBeUndefined(); // The lock is released; only this person must sign in again.
     if (issued) await expect(h.connections.access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
     else expect((await h.connections.authorize(h.principal)).status).toBe("active");
     expect(h.calls.length - before).toBe(issued ? 1 : 0);
@@ -72,7 +73,7 @@ describe("shared rotating source credentials", () => {
     const disconnect = await h.connections.disconnect(h.principal).then(() => "completed", (error) => error.code);
     await refresh;
     expect(disconnect).toBe("conflict");
-    expect((await h.connections.gate.status()).uncertain).toBeUndefined();
+    expect((await h.connections.gate.status()).attempt).toBeUndefined();
     expect((await h.connections.authorize(otherPrincipal)).status).toBe("active");
     await h.connections.disconnect(h.principal);
     await expect(h.connections.active(h.principal.subject)).rejects.toMatchObject({ code: "reauth_required" });
@@ -118,7 +119,7 @@ describe("shared rotating source credentials", () => {
     await sourceStarted;
     expect((await h.connections.gate.status()).until).toBe(initial + 80_000);
     vi.mocked(Date.now).mockReturnValue(initial + 31_000);
-    await expect(h.connections.gate.reconcileExpired()).rejects.toMatchObject({ code: "conflict" });
+    await expect(h.connections.gate.revokeAll()).rejects.toMatchObject({ code: "conflict" });
     await pending;
     expect((await h.connections.gate.status()).attempt).toBeUndefined();
   });
@@ -144,12 +145,13 @@ describe("shared rotating source credentials", () => {
     expect((await h.connections.gate.status()).attempt).toBeUndefined();
     await expect(h.connections.access(h.principal)).resolves.toMatch(/^fictional-a-/);
   });
-  it("does not replay an ambiguous authorization-code exchange", async () => {
-    const h = await setup();
-    vi.spyOn(h.source, "exchange").mockRejectedValue(new Error("Fictional transport timeout"));
-    await expect(h.connections.connect("unknown-code")).rejects.toMatchObject({ code: "reauth_required" });
-    await expect(h.connections.connect("unknown-code")).rejects.toMatchObject({ code: "reauth_required" });
-    expect(h.source.exchange).toHaveBeenCalledTimes(1);
+  it("releases an ambiguous code exchange so the person can retry with a new sign-in", async () => {
+    const h = await setup(); const exchange = h.source.exchange.bind(h.source);
+    vi.spyOn(h.source, "exchange").mockRejectedValueOnce(new Error("Fictional transport timeout")).mockImplementation(exchange);
+    await expect(h.connections.connect("unknown-code")).rejects.toMatchObject({ code: "unavailable", detail: "connect:exchange:Error" });
+    expect((await h.connections.gate.status()).attempt).toBeUndefined();
+    h.codes.set("retry-code", USER_A);
+    expect((await h.connections.connect("retry-code")).status).toBe("active");
   });
   it("serializes two replica refreshes and re-reads the persisted chain after the lease", async () => {
     const h = await setup(); await h.expire(); h.fake.tokenDelay = 30;
@@ -193,10 +195,10 @@ describe("shared rotating source credentials", () => {
     await expect(h.connections.access(h.principal)).resolves.toMatch(/^fictional-a-/);
   });
 
-  it("invalid_grant affects only that person's connection", async () => {
+  it.each(["invalid_grant", "invalid_request"])("refresh rejection %s affects only that person's connection", async (tokenError) => {
     const h = await setup(); h.codes.set("other", USER_B);
     const other = await h.connections.connect("other");
-    await h.expire(); h.fake.tokenStatus = 400;
+    await h.expire(); h.fake.tokenStatus = 400; h.fake.tokenError = tokenError;
     await expect(h.connections.access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
     expect((await h.connections.gate.status()).attempt).toBeUndefined();
     expect((await h.connections.active(other.subject)).status).toBe("active");
@@ -215,25 +217,37 @@ describe("shared rotating source credentials", () => {
     expect(h.calls.length).toBe(before);
   });
 
-  it("fails closed across restart when rotation persistence is uncertain and never replays the old refresh token", async () => {
-    const h = await setup(); await h.expire();
-    const write = h.store.write.bind(h.store);
-    vi.spyOn(h.store, "write").mockImplementation(async (key, value, version, expiry) => {
+  it("limits a failed rotation save to that person, who signs in again without operator help", async () => {
+    const h = await setup(); h.codes.set("other-person", USER_B); const other = await h.connections.connect("other-person");
+    await h.expire(); const write = h.store.write.bind(h.store);
+    const outage = vi.spyOn(h.store, "write").mockImplementation(async (key, value, version, expiry) => {
       if (key === h.connections.key(h.principal.subject)) throw new Error("Fictional persistence outage");
       return write(key, value, version, expiry);
     });
-    await expect(h.connections.access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
-    const count = h.calls.filter((v) => v.path === "/api/oauth2/token").length;
+    await expect(h.connections.access(h.principal)).rejects.toMatchObject({ code: "reauth_required", detail: "refresh:persist:Error" });
+    outage.mockRestore();
+    // Exact already rotated the token, so it refuses the stale one and the connection asks for a new sign-in.
     await expect(new Connections(h.store, h.cipher, h.source).access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
-    expect(h.calls.filter((v) => v.path === "/api/oauth2/token")).toHaveLength(count);
+    await expect(h.connections.active(h.principal.subject)).rejects.toMatchObject({ code: "reauth_required" });
+    expect((await h.connections.active(other.subject)).status).toBe("active");
+    h.codes.set("reconnect", USER_A);
+    expect((await h.connections.connect("reconnect")).status).toBe("active");
   });
 
-  it("keeps a crashed exchange visible and recovery fences every older credential chain", async () => {
-    const h = await setup(); const now = Date.now(); vi.spyOn(Date, "now").mockReturnValue(now);
-    await h.connections.gate.acquire(); vi.mocked(Date.now).mockReturnValue(now + 30_001);
+  it("refuses revokeAll for an app with no exchange state instead of reporting a false success", async () => {
+    const h = await setup(); const wrong = new ExchangeGate(h.store, "mistyped-app:nl");
+    await expect(wrong.revokeAll()).rejects.toMatchObject({ code: "conflict" });
+    expect(await h.store.read(wrong.key)).toBeUndefined();
+    expect((await h.connections.active(h.principal.subject)).status).toBe("active");
+  });
+  it("takes over a crashed exchange only after its lease expires, and revokeAll fences every older chain", async () => {
+    const h = await setup(); await h.expire(); const now = Date.now(); vi.spyOn(Date, "now").mockReturnValue(now);
+    await h.connections.gate.acquire();
     const restarted = new Connections(h.store, h.cipher, h.source);
-    await expect(restarted.access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
-    await restarted.gate.reconcileExpired();
+    await expect(restarted.access(h.principal)).rejects.toMatchObject({ code: "conflict" });
+    vi.mocked(Date.now).mockReturnValue(now + 30_001);
+    expect(await restarted.access(h.principal)).toMatch(/^fictional-a-/);
+    await restarted.gate.revokeAll();
     await expect(restarted.access(h.principal)).rejects.toMatchObject({ code: "reauth_required" });
     h.codes.set("reconnect", USER_A);
     const fresh = await restarted.connect("reconnect");
