@@ -1,4 +1,10 @@
 node_modules/
+*.pem
+*.key
+*.p12
+*.pfx
+scg-exact-config*.json
+production-config*.json
 dist/
 *.tsbuildinfo
 .env

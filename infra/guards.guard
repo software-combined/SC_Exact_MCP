@@ -1,0 +1,67 @@
+let tasks = Resources.*[ Type == 'AWS::ECS::TaskDefinition' ]
+let services = Resources.*[ Type == 'AWS::ECS::Service' ]
+let tables = Resources.*[ Type == 'AWS::DynamoDB::Table' ]
+let trails = Resources.*[ Type == 'AWS::CloudTrail::Trail' ]
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+let repositories = Resources.*[ Type == 'AWS::ECR::Repository' ]
+rule fargate_task when %tasks !empty {
+  Rules.ApprovedEuropeOnly exists
+  %tasks.Properties.NetworkMode == 'awsvpc'
+  %tasks.Properties.ContainerDefinitions[*].ReadonlyRootFilesystem == true
+  %tasks.Properties.ContainerDefinitions[*].User == 'node'
+}
+rule rollback when %services !empty {
+  Parameters.DesiredCount.MinValue == 2
+  Parameters.DesiredCount.Default == 2
+  %services.Properties.AvailabilityZoneRebalancing == 'ENABLED'
+  %services.Properties.DeploymentConfiguration.DeploymentCircuitBreaker.Enable == true
+  %services.Properties.DeploymentConfiguration.DeploymentCircuitBreaker.Rollback == true
+  %services.Properties.EnableExecuteCommand == false
+  %services.Properties.EnableECSManagedTags == true
+  %services.Properties.PropagateTags == 'TASK_DEFINITION'
+}
+rule independent_zone_egress when Resources.NatA exists {
+  Resources.NatA.Properties.SubnetId.Ref == 'PublicA'
+  Resources.NatB.Properties.SubnetId.Ref == 'PublicB'
+  Resources.NatRouteA.Properties.NatGatewayId.Ref == 'NatA'
+  Resources.NatRouteB.Properties.NatGatewayId.Ref == 'NatB'
+  Resources.PrivateAssociationA.Properties.RouteTableId.Ref == 'PrivateRoutesA'
+  Resources.PrivateAssociationB.Properties.RouteTableId.Ref == 'PrivateRoutesB'
+}
+rule retained_state when %tables !empty {
+  %tables.DeletionPolicy == 'Retain'
+  %tables.UpdateReplacePolicy == 'Retain'
+  %tables.Properties.PointInTimeRecoverySpecification.PointInTimeRecoveryEnabled == true
+  %tables.Properties.SSESpecification.SSEEnabled == true
+}
+rule dedicated_audit when %trails !empty {
+  Rules.DedicatedAccountOnly exists
+  Parameters.TrailName !exists
+  %trails.Properties.TrailName.Ref == 'AWS::StackName'
+  %trails.Properties.IsLogging == true
+  %trails.Properties.IsMultiRegionTrail == true
+  %trails.Properties.IsOrganizationTrail == false
+  %trails.Properties.EnableLogFileValidation == true
+  %trails.Properties.KMSKeyId exists
+  %trails.Properties.EventSelectors[*].IncludeManagementEvents == true
+  %trails.Properties.EventSelectors[*].DataResources !exists
+}
+rule private_retained_audit when %buckets !empty {
+  %buckets.DeletionPolicy == 'Retain'
+  %buckets.UpdateReplacePolicy == 'Retain'
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+  %buckets.Properties.PublicAccessBlockConfiguration.IgnorePublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+  %buckets.Properties.VersioningConfiguration.Status == 'Enabled'
+  %buckets.Properties.BucketEncryption exists
+  %buckets.Properties.LifecycleConfiguration !exists
+}
+rule retained_audit_delivery when Resources.AuditBucketPolicy exists {
+  Resources.AuditBucketPolicy.DeletionPolicy == 'Retain'
+  Resources.AuditBucketPolicy.UpdateReplacePolicy == 'Retain'
+}
+rule retained_images when %repositories !empty {
+  %repositories.DeletionPolicy == 'Retain'
+  %repositories.Properties.LifecyclePolicy !exists
+}
