@@ -28,6 +28,10 @@ Keep any real local credentials outside the repository and shared storage.
 | `EXACT_READ_ONLY` | Set `true` to remove explicit write tools. |
 | `EXACT_TOOLS` | Optional comma-separated legacy tool groups. |
 
+Set `EXACT_TOKEN_STORE` to a private file path that remains available after restart.
+Refresh replaces the old refresh token; without the saved new token, a restart can require sign-in again.
+If the saved token is lost or rejected, complete a fresh authorized Exact sign-in.
+
 Read-only mode still exposes 74 tools and a generic GET request path.
 The division setting is a default, not the hosted authorization boundary.
 These options cannot replace the hosted contract or personal broker.

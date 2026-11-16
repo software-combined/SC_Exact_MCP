@@ -1,50 +1,23 @@
 # Releasing
 
-How to cut a new release of `boostu-exactonline-mcp` to npm and the official MCP Registry.
+The public GitHub repository distributes source.
+The package is marked private.
+Automatic npm and MCP Registry publication are disabled.
 
-## One-time setup
+Normal pull requests target `development`.
+Run the required staged reviews and repository checks before integration.
 
-- **`NPM_TOKEN` secret**: a classic **Automation** token from npmjs.com (Access Tokens, Generate New Token, Classic Token, type Automation). Automation tokens publish in CI without a one-time password. Set it with:
-  ```
-  gh secret set NPM_TOKEN -R boostuagency/boostu-exactonline-mcp
-  ```
-- **MCP Registry**: no token needed. `.github/workflows/publish-mcp.yml` authenticates with GitHub OIDC, which proves ownership of the `io.github.boostuagency` namespace from within this repo.
+```sh
+npm run verify
+npm run verify:infra
+```
 
-## Release steps
+Use [HOSTING.md](docs/HOSTING.md) for the approved production rollout.
+Record the reviewed revision and immutable container image digest.
+Read back the running task, TLS endpoint, metadata, and actual staff result.
 
-1. **Bump the version in both files (they must match):**
-   - `package.json` -> `"version"`
-   - `server.json` -> the top-level `"version"` and `packages[0].version`
+Use [QUALIFICATION.md](docs/QUALIFICATION.md) before staff acceptance.
+Source tests, deployment health, staff client checks, and owner acceptance are separate gates.
 
-   Keep `"mcpName": "io.github.boostuagency/boostu-exactonline-mcp"` in `package.json`; the registry requires it to prove npm ownership.
-
-2. **Validate and commit:**
-   ```
-   npm run build && npx vitest run
-   mcp-publisher validate
-   git add package.json server.json package-lock.json
-   git commit -m "chore: release vX.Y.Z"
-   git push
-   ```
-
-3. **Publish to npm via a GitHub Release** (this triggers `release.yml`, which publishes automatically using `NPM_TOKEN`):
-   ```
-   gh release create vX.Y.Z -R boostuagency/boostu-exactonline-mcp --title "vX.Y.Z" --target main --notes "..."
-   ```
-
-4. **Publish to the MCP Registry** (manual, so a re-run never fails on an already-published version):
-   ```
-   gh workflow run publish-mcp.yml -R boostuagency/boostu-exactonline-mcp
-   ```
-
-5. **Verify:**
-   ```
-   npm view boostu-exactonline-mcp version           # -> X.Y.Z
-   curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.boostuagency/boostu-exactonline-mcp"
-   ```
-
-## Notes
-
-- npm versions are immutable. If a version is already published, bump to the next patch rather than trying to republish.
-- The registry keeps every version; the newest is flagged `isLatest`.
-- `files` in `package.json` ships only `dist` and `NOTICE`, so docs and config (including this file, `server.json`, and the `Dockerfile`) are not included in the npm tarball.
+Production deployment requires the reviewed two-zone templates and verified runtime configuration.
+A source release or Git tag must not deploy or publish credentials.
