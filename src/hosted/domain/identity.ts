@@ -35,11 +35,12 @@ export interface SourceTokens {
   issuedAt: number;
 }
 
-export interface Versioned<T> { value: T; version: number; expiresAt?: number }
+export interface Versioned<T> { value: T; version: string; expiresAt?: number }
 export interface StateStore {
   read<T>(key: string): Promise<Versioned<T> | undefined>;
-  write<T>(key: string, value: T, expectedVersion: number | undefined, expiresAt?: number): Promise<boolean>;
-  remove(key: string, expectedVersion: number): Promise<boolean>;
+  /** Return a unique opaque revision, or undefined on conflict; never reuse a revision after expiry. */
+  write<T>(key: string, value: T, expectedVersion: string | undefined, expiresAt?: number): Promise<string | undefined>;
+  remove(key: string, expectedVersion: string): Promise<boolean>;
 }
 
 export interface CredentialCipher {

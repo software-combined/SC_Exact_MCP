@@ -12,9 +12,13 @@ const meSchema = z.object({ UserID: exactUserSchema, CurrentDivision: z.number()
   FullName: z.string().max(200) });
 
 export interface SourceConfig { region: Region; appId: string; appSecret: string; callback: string }
+export type SourceRequest = <T>(read: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal) => Promise<T>;
+const boundedRequest: SourceRequest = (read, signal) => read(signal ?
+  AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000));
 export class ExactSource {
   readonly origin: string;
-  constructor(readonly config: SourceConfig, private fetcher: typeof fetch = fetch, localTestOrigin?: string) {
+  constructor(readonly config: SourceConfig, private fetcher: typeof fetch = fetch, localTestOrigin?: string,
+    private request: SourceRequest = boundedRequest) {
     if (localTestOrigin && !/^http:\/\/127\.0\.0\.1:\d+$/.test(localTestOrigin)) throw new Error("Only a loopback test origin is allowed.");
     this.origin = localTestOrigin ?? origins[config.region];
   }
@@ -33,10 +37,11 @@ export class ExactSource {
     return tokenResponse(response);
   }
   private async get(url: URL, token: string, signal?: AbortSignal): Promise<unknown> {
-    const response = await this.fetcher(url, { method: "GET", redirect: "error",
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
-    return jsonResponse(response);
+    return this.request(async (active) => {
+      const response = await this.fetcher(url, { method: "GET", redirect: "error", signal: active,
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+      return jsonResponse(response);
+    }, signal);
   }
   async me(token: string, independent?: AbortSignal) {
     const url = new URL("/api/v1/current/Me", this.origin);

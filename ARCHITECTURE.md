@@ -22,8 +22,16 @@ Every source request uses that person's current token; Exact remains the final
 permission authority, including after roles or division access change.
 
 The state port provides consistent reads and conditional version writes.
+Revisions are unique opaque values, including after expiry and replacement.
 OAuth records, budgets, cursor handles, and source exchange leases use it.
 The production adapter uses DynamoDB; tests share an atomic in-memory adapter.
+One shared app slot serializes Exact REST requests through full body consumption
+or cancellation. Requests have a 15-second bound and a longer 30-second lease.
+A crashed holder delays the next request until lease expiry. This controls
+client requests; it does not prove when Exact finishes work after socket closure.
+The HTTP transport owns each request's 25-second deadline.
+Person reservations last 30 seconds to cover that deadline and recover crashed requests.
+Already-started credential persistence uses its independent bound after caller cancellation.
 Source credentials use KMS encryption with principal-bound context. Static app
 credentials, signing keys, and cookie keys come from Secrets Manager at runtime.
 
