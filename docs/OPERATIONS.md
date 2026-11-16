@@ -1,7 +1,7 @@
 # Operations
 
-Owner: Software Combined IT. Scope: the dedicated SCG MCP app.
-The service has no business write path.
+Owner: Software Combined IT. Scope: the dedicated SCG Exact MCP app.
+The service cannot change business records.
 Credential maintenance and internal state still require careful recovery.
 
 ## Normal operation
@@ -9,14 +9,14 @@ Credential maintenance and internal state still require careful recovery.
 Each request has a 25-second deadline.
 Each Exact call has a 15-second timeout.
 One shared app slot keeps REST requests sequential across people and replicas.
-It remains held until the response body finishes or the client request is cancelled.
+The slot stays in use until the response body finishes or the client request is cancelled.
 A 30-second lease bounds recovery after a process crash.
 An abandoned read does not create permanent credential uncertainty.
 The slot controls client requests, not Exact's internal work after a socket closes.
-A person can run at most two tool calls across all AI clients and replicas.
+A person can run at most two tool calls across all AI (artificial intelligence) clients and replicas.
 Each tool reads one page and at most 100 rows.
 Source JSON is limited to 512,000 bytes.
-Model-visible structured output is limited to 64,000 bytes.
+Structured output that the AI model can see is limited to 64,000 bytes.
 
 A normal company discovery makes one source read.
 A customer, invoice, or receivables query makes two source reads.
@@ -32,7 +32,7 @@ The separate pool does not guarantee a fixed remaining share of the normal budge
 This protects configured service capacity; it does not guarantee vendor availability or prevent all denial-of-service attacks.
 No tool loops over all pages.
 
-Cursor handles expire after ten minutes and are consumed once.
+Cursors (markers that fetch the next page) expire after ten minutes and can be used only once.
 They bind the person, region, company, operation, filters, projection version, and connection generation.
 They store continuation metadata, not financial rows.
 They reject changed, repeated, or unsafe source continuations.
@@ -44,13 +44,13 @@ The label names the failed step and error class. It never contains source data o
 Do not enable request-body, authorization-header, token-endpoint, or financial-response logging.
 Use request IDs to investigate failures. Staff see the request ID as the reference on sign-in error pages.
 
-## Refresh behavior
+## Refresh behaviour
 
 Exact refresh tokens rotate.
 A new authorization-code exchange can also invalidate a previous refresh chain for the same app and person.
 Different integrations must use different Exact apps.
 
-The app-wide exchange gate serializes first-time sign-in and refresh.
+The app-wide exchange gate runs first-time sign-in and refresh one at a time.
 It reserves 30 seconds for preflight, then renews the same attempt to 60 seconds before issuance.
 The service rereads ownership, epoch, and remaining lease time before contacting Exact.
 Identity is unknown until a new sign-in reaches `current/Me`.
@@ -66,15 +66,15 @@ The normal access-token safety margin is 30 seconds.
 Early source expiry can require waiting or reauthentication.
 
 Credential exchange and identity validation have an independent 15-second bound.
-Each AWS call has an independent 3-second limit through credential resolution and response processing.
-It runs once. A timeout aborts its unfinished request; if Exact already rotated the token, that person signs in again.
+Each Amazon Web Services (AWS) call has an independent 3-second limit through credential resolution and response processing.
+It runs once. A timeout stops its unfinished request. If Exact already rotated the token, that person signs in again.
 Request cancellation does not interrupt started credential persistence.
 Shutdown closes incoming HTTP connections to cancel work that has not issued credentials.
-Already-started credential work can drain for up to 35 seconds.
+Already-started credential work can keep running for up to 35 seconds.
 Forced shutdown can leave one saved token stale; that person signs in again.
 The new access token is returned only after encrypted persistence and readback succeed.
 
-Known non-issuing OAuth rejections release the gate.
+Known OAuth rejections that issue no token release the gate.
 An invalid refresh grant marks only that person's connection for reauthentication.
 Quota rejection creates a shared cooldown and preserves usable connections.
 Unknown transport outcomes, malformed success, and failed persistence mark only that person's connection for a new sign-in.
@@ -107,7 +107,9 @@ No operator action is needed. If Exact rotated a token that was not saved, Exact
 To make every person sign in again, for example after a suspected compromise of the service:
 
 1. Confirm the app, region, environment and AWS operator identity.
-2. Run `node dist/hosted/reconcile.js` as a one-off task copied from the service task definition. It supplies the task role, `AWS_REGION`, `SCG_STATE_TABLE` and `SCG_EXACT_APP_ID`. Add `SCG_EXACT_REGION` and `SCG_CONFIRM_REAUTH_ALL=yes`.
+2. Run `node dist/hosted/reconcile.js` as a one-off task copied from the service task definition.
+   - The copied task supplies the task role, `AWS_REGION`, `SCG_STATE_TABLE` and `SCG_EXACT_APP_ID`.
+   - Add `SCG_EXACT_REGION` and `SCG_CONFIRM_REAUTH_ALL=yes`.
 3. Expect the `all_connections_revoked` event. The command refuses while an exchange is running; retry after a minute.
 4. Ask people to sign in again.
 
@@ -120,16 +122,18 @@ It does not read or print secrets.
 ## Rollback and retained state
 
 Rollback can replace the application image with a compatible reviewed image.
-A compatible image accepts every Exact GUID that the current image accepts.
+A compatible image accepts every Exact GUID (globally unique identifier) that the current image accepts.
 Images built before generic GUID support accept only RFC-format GUIDs.
 After any person connects, do not roll back to such an image, and do not run it beside the current image.
-Its token refresh rejects other Exact user IDs. Images before self-service recovery also lock sign-in for everyone after one failed exchange. Roll forward instead.
+Its token refresh rejects other Exact user IDs. Images before self-service recovery also lock sign-in for everyone after one failed exchange.
+Images built before commit `c3e65f5` cannot read saved Exact tokens that contain characters such as `!`. Lookups then fail for every person whose saved token contains one.
+Roll forward instead.
 Keep the current shared table and encryption keys.
 Never roll credentials back to an older snapshot.
 An old refresh token may already be invalid.
-Use reauthentication when state integrity cannot be established.
+Ask people to sign in again when you cannot confirm that the saved state is intact.
 
 Keep old signing verification keys until issued tokens expire.
 Coordinate signing-key and cookie-key changes across replicas.
 Configuration is loaded at process startup.
-A secret change needs a separately authorized task replacement.
+A secret change needs a separately authorised task replacement.

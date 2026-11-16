@@ -1,7 +1,7 @@
 # Documentation
 
 Owner: Software Combined IT. Last checked: 16/11/2026.
-Status: production target approved; deployed service and staff qualification require current checks.
+Status: running in production for a guided pilot; AI client checks and staff acceptance are recorded in the qualification record.
 
 Start with the document for your task.
 
@@ -12,7 +12,7 @@ Start with the document for your task.
 | Operator setup and rollout | [Hosting guide](HOSTING.md) |
 | Errors, disconnect, and revoking all connections | [Operations guide](OPERATIONS.md) |
 | Local proof and remaining acceptance gates | [Qualification](QUALIFICATION.md) |
-| Behavior and authority | [Rules](../RULES.md) |
+| Behaviour and authority | [Rules](../RULES.md) |
 | Module ownership and design | [Architecture](../ARCHITECTURE.md) |
 | Repository work and verification | [Agent instructions](../AGENTS.md), [contributing](../CONTRIBUTING.md) |
 | Local legacy stdio server | [Legacy CLI](LEGACY-CLI.md) |
@@ -25,6 +25,6 @@ The staff guide contains staff steps, not infrastructure commands.
 The hosting guide owns runtime configuration and deployment prerequisites.
 Qualification records distinguish local tests from real staff acceptance.
 
-Documentation uses simple technical English, guided by ASD-STE100 sentence principles.
+Documentation uses simple technical English, guided by the sentence principles of ASD-STE100 (Simplified Technical English).
 This is a writing approach, not a claim of formal vocabulary certification.
 Technical identifiers, schemas, code, and source titles retain their exact spelling.
