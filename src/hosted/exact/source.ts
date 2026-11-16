@@ -59,7 +59,7 @@ export class ExactSource {
     return parsed.data;
   }
   private url(division: number, read: ReadPlan): URL {
-    const key = read.key ? `(guid'${z.string().uuid().parse(read.key)}')` : "";
+    const key = read.key ? `(guid'${z.guid().parse(read.key)}')` : "";
     const url = new URL(`/api/v1/${division}/${read.resource}${key}`, this.origin);
     url.searchParams.set("$select", read.select);
     if (read.filter) url.searchParams.set("$filter", read.filter);

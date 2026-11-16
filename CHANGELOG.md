@@ -10,6 +10,10 @@ client grants, sequential source reads, and EU production templates with two-zon
 Local protocol tests use the real OAuth and MCP libraries with fictional Exact responses.
 Deployment and staff qualification remain pending.
 
+Exact GUIDs are accepted without RFC version or variant bits, because Exact does not guarantee them.
+Sign-in pages carry the SCG and Exact logos and explain failures in the browser with a request reference.
+Request logs name the route and, on failure, a fixed step label.
+
 The package is private.
 Inherited npm and MCP Registry publishing paths are removed.
 The public documentation now follows the SCG hosted mandate.

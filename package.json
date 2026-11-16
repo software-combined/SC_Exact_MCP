@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('node:fs').cpSync('src/hosted/transport/brand', 'dist/hosted/transport/brand', { recursive: true })\"",
     "dev": "tsx src/hosted/main.ts",
     "start": "node dist/hosted/main.js",
     "dev:legacy": "tsx src/index.ts",

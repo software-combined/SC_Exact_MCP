@@ -25,7 +25,7 @@ export class Connections {
   }
   async connect(code: string, caller?: AbortSignal): Promise<Connection> {
     let lease = await this.gate.acquire();
-    let started = false; let exchanged = false;
+    let started = false; let exchanged = false; let stage = "prepare";
     try {
       caller?.throwIfAborted();
       const exchange = await this.source.prepareExchange();
@@ -34,10 +34,11 @@ export class Connections {
       await this.gate.assertIssuing(lease);
       caller?.throwIfAborted();
       const independent = AbortSignal.timeout(15_000);
-      started = true;
+      started = true; stage = "exchange";
       const tokens = await exchange.exchange("code", code, independent);
-      exchanged = true;
+      exchanged = true; stage = "identity";
       const me = await exchange.me(tokens.accessToken, independent);
+      stage = "persist";
       const id = subject(this.source.config.region, me.UserID);
       const old = await this.store.read<Connection>(this.key(id));
       const sameActive = old?.value.status === "active" && old.value.appEpoch === lease.epoch &&
@@ -56,7 +57,9 @@ export class Connections {
         throw error;
       }
       await this.gate.uncertain(lease);
-      throw new ServiceError("reauth_required", "Exact sign-in could not be safely persisted. IT must reconcile before retrying.", 401);
+      const cause = error instanceof ServiceError ? error.code : (error as Error)?.name ?? "unknown";
+      throw new ServiceError("reauth_required", "Exact sign-in could not be saved safely. Contact Software Combined IT before you try again.",
+        401, `connect:${stage}:${cause}`);
     }
   }
   private async readback(value: Connection) {
@@ -112,14 +115,14 @@ export class Connections {
           if (!old || !await this.store.write(this.key(principal.subject), { ...old.value, status: "reauth_required",
             generation: old.value.generation + 1, credentials: "" }, old.version)) {
             await this.gate.uncertain(lease);
-            throw new ServiceError("reauth_required", "Credential rejection could not be persisted. IT must reconcile.", 401);
+            throw new ServiceError("reauth_required", "Credential rejection could not be persisted. Contact Software Combined IT.", 401);
           }
         }
         await this.gate.complete(lease);
         throw error;
       }
       await this.gate.uncertain(lease);
-      throw new ServiceError("reauth_required", "Exact token rotation is uncertain. IT must reconcile before reconnecting.", 401);
+      throw new ServiceError("reauth_required", "Exact token rotation is uncertain. Contact Software Combined IT before you reconnect.", 401);
     }
   }
   async disconnect(principal: Principal) {
