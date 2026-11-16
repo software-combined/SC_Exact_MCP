@@ -1,14 +1,13 @@
 import { z } from "zod";
-import { ServiceError, type SourceTokens } from "../domain/identity.js";
+import { ServiceError, sourceTokenText, type SourceTokens } from "../domain/identity.js";
 import { jsonResponse } from "./http.js";
 
 export class ExchangeRejected extends ServiceError {
   constructor(code: "reauth_required" | "denied" | "limited", message: string, status: number,
     readonly credentialsInvalid = false) { super(code, message, status); }
 }
-const opaque = z.string().min(1).max(16_384).regex(/^[A-Za-z0-9._~+\/=\-]+$/);
-const schema = z.object({ access_token: opaque,
-  refresh_token: opaque, token_type: z.string().refine((v) => v.toLowerCase() === "bearer"),
+const schema = z.object({ access_token: sourceTokenText,
+  refresh_token: sourceTokenText, token_type: z.string().refine((v) => v.toLowerCase() === "bearer"),
   expires_in: z.union([z.number().int().positive().max(3600), z.string().regex(/^[0-9]+$/)
     .transform(Number).pipe(z.number().int().positive().max(3600))]) });
 
@@ -21,8 +20,9 @@ export async function tokenResponse(response: Response): Promise<SourceTokens> {
     const raw = await jsonResponse(new Response(response.body, { status: 200 }), 40_000);
     const error = z.object({ error: z.enum(["invalid_request", "invalid_client", "invalid_grant", "unauthorized_client",
       "unsupported_grant_type", "invalid_scope", "access_denied"]) }).safeParse(raw);
+    // Exact answers a stale or unknown refresh token with invalid_request, not only invalid_grant.
     if (error.success) throw new ExchangeRejected("reauth_required", "Exact rejected the sign-in or refresh grant. Reconnect.", 401,
-      error.data.error === "invalid_grant");
+      error.data.error === "invalid_grant" || error.data.error === "invalid_request");
     throw new ServiceError("reauth_required", "Exact returned an unrecognized credential outcome. Contact Software Combined IT.", 401);
   }
   const parsed = schema.safeParse(await jsonResponse(response, 40_000));

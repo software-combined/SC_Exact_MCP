@@ -16,7 +16,7 @@ Each protected request checks the SCG token, active grant, and personal connecti
 
 Credentials use principal-bound envelope encryption with AWS Key Management Service.
 Shared state uses consistent reads and conditional writes.
-An uncertain Exact rotation blocks further credential use until reconciliation.
+A failed or uncertain Exact rotation affects only that person, who signs in again. No one else is blocked.
 Logs contain request metadata, not source tokens or financial rows.
 
 The public source is not a deployed security certification.

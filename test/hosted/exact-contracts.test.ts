@@ -151,6 +151,13 @@ describe("canonical Exact contracts", () => {
     const value = await tokenResponse(new Response(JSON.stringify({ access_token: "fixture-a", refresh_token: "fixture-r", token_type: "bEaReR", expires_in: expiry })));
     expect(value.expiresAt - value.issuedAt).toBe(600_000);
   });
+  it("accepts Exact token characters such as ! and rejects whitespace or control characters", async () => {
+    const tokens = (access: string) => new Response(JSON.stringify({ access_token: access, refresh_token: "Gcp!IAAAAfixture", token_type: "bearer", expires_in: "600" }));
+    expect((await tokenResponse(tokens("AAEA!fixture*access"))).refreshToken).toBe("Gcp!IAAAAfixture");
+    for (const bad of ["fixture access", "fixture\r\naccess", "fixture\taccess"]) {
+      await expect(tokenResponse(tokens(bad))).rejects.toMatchObject({ code: "reauth_required" });
+    }
+  });
   it.each([true, "600.0", " 600", "6e2", 0, 3601, "Infinity"])("rejects a malformed expiry %j", async (expiry) => {
     await expect(tokenResponse(new Response(JSON.stringify({ access_token: "fixture-a", refresh_token: "fixture-r", token_type: "Bearer", expires_in: expiry })))).rejects.toMatchObject({ code: "reauth_required" });
   });

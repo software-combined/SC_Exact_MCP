@@ -1,12 +1,11 @@
 import { KMSClient, GenerateDataKeyCommand, DecryptCommand } from "@aws-sdk/client-kms";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { z } from "zod";
-import type { CredentialCipher, SourceTokens } from "../domain/identity.js";
+import { sourceTokenText, type CredentialCipher, type SourceTokens } from "../domain/identity.js";
 import { awsClientOptions, awsRequest } from "./aws.js";
 
-const opaque = z.string().min(1).max(16_384).regex(/^[A-Za-z0-9._~+\/=\-]+$/);
-const tokens = z.strictObject({ accessToken: opaque,
-  refreshToken: opaque, expiresAt: z.number().finite().positive(), issuedAt: z.number().finite().positive() });
+const tokens = z.strictObject({ accessToken: sourceTokenText,
+  refreshToken: sourceTokenText, expiresAt: z.number().finite().positive(), issuedAt: z.number().finite().positive() });
 
 export class KmsCipher implements CredentialCipher {
   private client: KMSClient;

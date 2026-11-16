@@ -44,18 +44,19 @@ IDs are administrative configuration, not personal identity. Source tokens
 are never accepted as SCG tokens.
 
 One shared app exchange gate also covers first-time code exchanges: identity is
-unknown until `current/Me` succeeds. A crash at that boundary can require an
-operator recovery affecting the app. This deliberately favors credential
-integrity over silently replaying an invalidated rotation chain.
+unknown until `current/Me` succeeds. Recovery is self-service, as in any OAuth
+connector. A failed first sign-in blocks nobody and the person retries. A failed
+refresh marks only that person's connection for a new sign-in. If a stale token
+remains saved, Exact refuses it on the next refresh and the same marking happens.
 The same attempt receives a fresh 60-second issuance lease after preflight.
 Ownership, epoch, and remaining time are checked before a source exchange starts.
 The fixed token-and-identity pair reserves both calls in every minute and day its bounded admission can reach.
-An upstream cooldown still blocks identity validation; missing verified identity requires fail-closed reconciliation.
+An upstream cooldown still blocks identity validation; the person retries after the cooldown.
 Unused reserved calls remain spent after cancellation or rejection.
 The public sign-in pool permits at most one quarter of each app budget.
 It protects configured capacity for existing grants; it cannot guarantee provider availability or new sign-in access.
-Operator reconciliation requires stopping and confirming all old writers first.
-Lease expiry alone cannot prove that an old writer will not resume.
+An abandoned lease expires within 60 seconds and the next exchange takes it over.
+A stalled writer that resumes later can only fail a conditional write or leave a token that Exact refuses.
 
 Infrastructure targets production with an HTTPS load balancer and ECS Fargate.
 Frankfurt (`eu-central-1`) is selected; Ireland (`eu-west-1`) is the supported

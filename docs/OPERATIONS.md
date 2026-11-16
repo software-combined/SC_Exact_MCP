@@ -58,7 +58,7 @@ The connection is then updated under its canonical app, region, and Exact user I
 New consent for the same active person preserves other active clients' connection generation.
 Disconnected, invalid, or prior-epoch connections require fresh client grants.
 Replicas reread credentials after acquiring the gate.
-They never replay an older refresh token automatically.
+If saving a rotated token fails, the older saved token can be sent once more. Exact refuses it, and that person signs in again.
 
 Refresh cannot start before 570 seconds have elapsed since token issue.
 The comparison retains millisecond precision.
@@ -67,17 +67,18 @@ Early source expiry can require waiting or reauthentication.
 
 Credential exchange and identity validation have an independent 15-second bound.
 Each AWS call has an independent 3-second limit through credential resolution and response processing.
-It runs once. A timeout aborts its unfinished request; uncertain credential persistence still requires reconciliation.
+It runs once. A timeout aborts its unfinished request; if Exact already rotated the token, that person signs in again.
 Request cancellation does not interrupt started credential persistence.
 Shutdown closes incoming HTTP connections to cancel work that has not issued credentials.
 Already-started credential work can drain for up to 35 seconds.
-Forced shutdown can leave credentials uncertain; follow recovery before retrying.
+Forced shutdown can leave one saved token stale; that person signs in again.
 The new access token is returned only after encrypted persistence and readback succeed.
 
 Known non-issuing OAuth rejections release the gate.
 An invalid refresh grant marks only that person's connection for reauthentication.
 Quota rejection creates a shared cooldown and preserves usable connections.
-Unknown transport outcomes, malformed success, and failed persistence retain uncertain state.
+Unknown transport outcomes, malformed success, and failed persistence mark only that person's connection for a new sign-in.
+A failed first sign-in does not block anyone; the person tries again.
 
 ## Disconnect and reconnect
 
@@ -98,37 +99,23 @@ Reconnection requires fresh Exact consent and confirmation of the displayed user
 The generation changes again.
 Old client grants cannot regain authority through a model retry.
 
-## Uncertain exchange recovery
+## Abandoned exchanges and revoking all connections
 
-If an exchange is uncertain, stop retrying sign-in and refresh.
-Do not restore or replay a saved refresh token.
-The app-wide hold protects an unknown person's possibly invalidated chain.
+The exchange lock lasts at most 60 seconds. If a task stops during an exchange, the next exchange takes over after the lock expires.
+No operator action is needed. If Exact rotated a token that was not saved, Exact refuses the stale token and that person signs in again.
 
-1. Confirm the exact app, region, environment, and AWS operator identity.
-2. Confirm the failing request and metadata without reading secret values.
-3. Obtain authority to stop all service writers and require app-wide reauthentication.
-4. Pause automatic scaling and deployments.
-5. Set the ECS service desired count to zero through the approved recovery procedure.
-6. Stop other writers, including separate operator or one-off tasks.
-7. Read back zero desired, running, and pending service tasks, with no other writers.
-8. Keep service replacement and other writers stopped through reconciliation.
-9. Confirm the uncertain source attempt has settled with the platform owner.
-10. Wait until the stored exchange lease has expired after stopping those writers.
-11. Set the nonsecret values required by `src/hosted/reconcile.ts` in an isolated operator process.
-12. Set `SCG_CONFIRM_REAUTH_ALL=yes` and `SCG_CONFIRM_WRITERS_STOPPED=yes` for the verified recovery.
-13. Recheck the zero-writer condition immediately before reconciliation.
-14. Run `node dist/hosted/reconcile.js` in the verified production context.
-15. Restore the reviewed service tasks and approved scaling and deployment settings.
-16. Ask each affected person to reconnect through their own Exact sign-in.
-17. Check a permitted read and client authorization again.
+To make every person sign in again, for example after a suspected compromise of the service:
 
-The recovery increments the app epoch with a conditional write.
-Every older credential chain becomes unusable.
-The command does not fetch or print secrets.
-It refuses an unexpired exchange.
-The confirmation flags do not stop tasks or prove their status.
-Exact cannot enforce the service's lease fence.
-An expired lease alone is not sufficient authority to reconcile.
+1. Confirm the app, region, environment and AWS operator identity.
+2. Run `node dist/hosted/reconcile.js` as a one-off task copied from the service task definition. It supplies the task role, `AWS_REGION`, `SCG_STATE_TABLE` and `SCG_EXACT_APP_ID`. Add `SCG_EXACT_REGION` and `SCG_CONFIRM_REAUTH_ALL=yes`.
+3. Expect the `all_connections_revoked` event. The command refuses while an exchange is running; retry after a minute.
+4. Ask people to sign in again.
+
+This makes SCG stop using every saved Exact token. It does not revoke tokens at Exact.
+If tokens may have leaked, also revoke this app's access in Exact, as `SECURITY.md` describes.
+
+The command increments the app epoch. Every saved connection, client grant and cursor stops working.
+It does not read or print secrets.
 
 ## Rollback and retained state
 
@@ -136,7 +123,7 @@ Rollback can replace the application image with a compatible reviewed image.
 A compatible image accepts every Exact GUID that the current image accepts.
 Images built before generic GUID support accept only RFC-format GUIDs.
 After any person connects, do not roll back to such an image, and do not run it beside the current image.
-Its token refresh rejects other Exact user IDs and puts the app into an uncertain exchange. Roll forward instead.
+Its token refresh rejects other Exact user IDs. Images before self-service recovery also lock sign-in for everyone after one failed exchange. Roll forward instead.
 Keep the current shared table and encryption keys.
 Never roll credentials back to an older snapshot.
 An old refresh token may already be invalid.

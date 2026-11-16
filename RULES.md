@@ -25,9 +25,9 @@ passthrough are forbidden. Check the active grant and connection generation on
 every protected request. Disconnect invalidates all existing grants and cursors.
 
 Refresh and authorization-code exchanges can invalidate prior Exact refresh
-tokens. Shared conditional state serializes exchanges. An expired unfinished
-attempt means uncertain credentials, never permission to replay an old token.
-Reauthentication or explicit operator reconciliation is the recovery path.
+tokens. Shared conditional state serializes exchanges. A failed exchange affects
+only its own person: a failed first sign-in is retried, and a failed refresh
+requires that person to sign in again. Recovery never needs an operator.
 
 Each tool reads one bounded page, with explicit source time, company, currency,
 and complete/partial coverage. A page is not a snapshot or a complete financial

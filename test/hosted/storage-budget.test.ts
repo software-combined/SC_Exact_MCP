@@ -117,6 +117,20 @@ describe("KMS credential envelope", () => {
       issuedAt: Date.now(), expiresAt: Date.now() + 600_000 }, "connection:fixture-app:nl:user-a")).rejects.toThrow(/no encryption key/);
     expect(plaintextKey).toEqual(Buffer.alloc(32));
   });
+  it("round-trips Exact tokens containing ! and refuses whitespace before calling KMS", async () => {
+    const key = randomBytes(32); const send = vi.spyOn(KMSClient.prototype, "send").mockImplementation(async (command: unknown) => {
+      if (command instanceof GenerateDataKeyCommand) return { Plaintext: Buffer.from(key), CiphertextBlob: Buffer.from("fictional-wrapped") };
+      if (command instanceof DecryptCommand) return { Plaintext: Buffer.from(key) };
+      throw new Error("Unexpected KMS operation.");
+    });
+    const cipher = new KmsCipher("fictional-key-reference", "fixture-app", "eu-west-1");
+    const context = "connection:fixture-app:nl:user-a";
+    const tokens = { accessToken: "AAEA!fixture*access", refreshToken: "Gcp!IAAAAfixture", issuedAt: Date.now(), expiresAt: Date.now() + 600_000 };
+    expect(await cipher.open(await cipher.seal(tokens, context), context)).toEqual(tokens);
+    const calls = send.mock.calls.length;
+    await expect(cipher.seal({ ...tokens, refreshToken: "Gcp fixture\r\n" }, context)).rejects.toThrow();
+    expect(send.mock.calls.length).toBe(calls);
+  });
   it("encrypts long tokens beyond KMS direct-encryption size and binds the data key and ciphertext to the principal", async () => {
     const key = randomBytes(32); const contexts: unknown[] = [];
     vi.spyOn(KMSClient.prototype, "send").mockImplementation(async (command: unknown) => {

@@ -35,7 +35,7 @@ box-shadow:0 8px 32px rgba(29,29,31,.08);padding:32px}
 h1{font-size:22px;line-height:1.3;margin:0 0 12px}p{margin:0 0 16px;color:#4a4b50}strong{color:#1d1d1f}
 button{width:100%;margin-top:8px;padding:12px 16px;border:0;border-radius:10px;background:#1d1d1f;color:#fff;
 font-family:inherit;font-size:16px;font-weight:600;line-height:1.2;cursor:pointer}button:hover{background:#3a3b40}button:focus-visible{outline:3px solid #ff2178;outline-offset:2px}
-.note{font-size:14px;color:#6b6c72}.foot{margin:24px 0 0;padding-top:16px;border-top:1px solid #eceef1;font-size:13px;color:#6b6c72}`;
+.note{font-size:14px;color:#6b6c72}`;
 const styleHash = createHash("sha256").update(style).digest("base64");
 
 /** Renders a sign-in page. Callers must escape any dynamic text they place in `content`. */
@@ -43,5 +43,5 @@ export function html(res: ServerResponse, title: string, content: string, formOr
   res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store",
     "Referrer-Policy": "same-origin",
     "Content-Security-Policy": `default-src 'none'; img-src data:; style-src 'sha256-${styleHash}'; form-action 'self' ${formOrigins.map((value) => new URL(value).origin).join(" ")}; base-uri 'none'; frame-ancestors 'none'` });
-  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${style}</style></head><body><main><div class="brands"><img src="${scgLogo}" alt="Software Combined"><span aria-hidden="true"></span><img class="exact" src="${exactLogo}" alt="Exact"></div><h1>${escapeHtml(title)}</h1>${content}<p class="foot">Read-only access, provided by Software Combined IT.</p></main></body></html>`);
+  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${style}</style></head><body><main><div class="brands"><img src="${scgLogo}" alt="Software Combined"><span aria-hidden="true"></span><img class="exact" src="${exactLogo}" alt="Exact"></div><h1>${escapeHtml(title)}</h1>${content}</main></body></html>`);
 }
