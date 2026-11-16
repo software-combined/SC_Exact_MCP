@@ -193,15 +193,15 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
       Tags:
-        - { Key: Project, Value: SCG-Exact-MCP }
-        - { Key: System, Value: Exact-MCP }
+        - { Key: Project, Value: scg-exact-mcp }
+        - { Key: System, Value: exact-mcp }
         - { Key: Environment, Value: production }
         - { Key: Owner, Value: !Ref TagOwner }
-        - { Key: ManagedBy, Value: CloudFormation }
+        - { Key: ManagedBy, Value: sc-infrastructure }
         - { Key: DataClass, Value: !Ref TagDataClass }
         - { Key: RetentionClass, Value: !Ref TagRetentionClass }
         - { Key: ReviewBy, Value: !Ref TagReviewBy }
-        - { Key: Company, Value: SoftwareCombined }
+        - { Key: Company, Value: software-combined }
       ContainerDefinitions:
         - Name: exact-mcp
           Image: !Ref ImageUri
