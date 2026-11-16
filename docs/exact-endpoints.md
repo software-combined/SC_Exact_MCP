@@ -1,12 +1,15 @@
-# Exact Online — Resource Manifest
+# Legacy Exact resource reference
 
-**Source of truth** for the Exact Online resource paths used in this project.
+This is the retained reference for the legacy stdio catalogue only.
+It does not define the hosted service's allowed resources or fields.
+The fixed hosted adapter and [qualification sources](QUALIFICATION.md) own that contract.
 
 All paths are relative to `https://start.exactonline.<region>/api/v1/{division}/`, except
 `current/Me`, which sits outside a division.
 
-Verified against the official resource index at
-<https://start.exactonline.nl/docs/HlpRestAPIResources.aspx> (checked 2026-09-02).
+The upstream reference cited the official resource index at
+<https://start.exactonline.nl/docs/HlpRestAPIResources.aspx>, checked 02/09/2026.
+That historical check is not fresh live qualification.
 
 ---
 

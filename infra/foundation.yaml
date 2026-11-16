@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Isolated EU production prerequisites for SCG Exact MCP with independent private egress in two zones.
+Parameters:
+  Hostname: { Type: String, AllowedPattern: '^[a-z0-9.-]+$', Description: Approved production hostname }
+  HostedZoneId: { Type: 'AWS::Route53::HostedZone::Id' }
+Rules:
+  ApprovedEuropeOnly:
+    Assertions:
+      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
+        AssertDescription: This production foundation may run only in Frankfurt or Ireland.
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties: { CidrBlock: 10.84.0.0/16, EnableDnsSupport: true, EnableDnsHostnames: true }
+  Gateway: { Type: 'AWS::EC2::InternetGateway' }
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { VpcId: !Ref Vpc, InternetGatewayId: !Ref Gateway }
+  PublicA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.84.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+  PublicB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.84.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+  PrivateA:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref Vpc, CidrBlock: 10.84.10.0/24, AvailabilityZone: !Select [0, !GetAZs ''] }
+  PrivateB:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref Vpc, CidrBlock: 10.84.11.0/24, AvailabilityZone: !Select [1, !GetAZs ''] }
+  PublicRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref Vpc }
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: { RouteTableId: !Ref PublicRoutes, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref Gateway }
+  PublicAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicA, RouteTableId: !Ref PublicRoutes }
+  PublicAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicB, RouteTableId: !Ref PublicRoutes }
+  EipA:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties: { Domain: vpc }
+  EipB:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties: { Domain: vpc }
+  NatA:
+    Type: AWS::EC2::NatGateway
+    DependsOn: InternetRoute
+    Properties: { AllocationId: !GetAtt EipA.AllocationId, SubnetId: !Ref PublicA }
+  NatB:
+    Type: AWS::EC2::NatGateway
+    DependsOn: InternetRoute
+    Properties: { AllocationId: !GetAtt EipB.AllocationId, SubnetId: !Ref PublicB }
+  PrivateRoutesA:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref Vpc }
+  PrivateRoutesB:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref Vpc }
+  NatRouteA:
+    Type: AWS::EC2::Route
+    Properties: { RouteTableId: !Ref PrivateRoutesA, DestinationCidrBlock: 0.0.0.0/0, NatGatewayId: !Ref NatA }
+  NatRouteB:
+    Type: AWS::EC2::Route
+    Properties: { RouteTableId: !Ref PrivateRoutesB, DestinationCidrBlock: 0.0.0.0/0, NatGatewayId: !Ref NatB }
+  PrivateAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateA, RouteTableId: !Ref PrivateRoutesA }
+  PrivateAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateB, RouteTableId: !Ref PrivateRoutesB }
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: { ScanOnPush: true }
+      EncryptionConfiguration: { EncryptionType: AES256 }
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref Hostname
+      ValidationMethod: DNS
+      DomainValidationOptions: [{ DomainName: !Ref Hostname, HostedZoneId: !Ref HostedZoneId }]
+  ConfigKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Dedicated production static configuration key
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root' }
+            Action: 'kms:*'
+            Resource: '*'
+  ConfigSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Empty SCG Exact MCP production configuration. Owner must securely populate before service launch.
+      KmsKeyId: !GetAtt ConfigKey.Arn
+Outputs:
+  VpcId: { Description: Service VpcId parameter, Value: !Ref Vpc }
+  VpcCidr: { Description: Service VpcCidr parameter, Value: !GetAtt Vpc.CidrBlock }
+  PublicSubnets: { Description: Service public subnet parameter, Value: !Join [',', [!Ref PublicA, !Ref PublicB]] }
+  PrivateSubnets: { Description: Service private subnet parameter, Value: !Join [',', [!Ref PrivateA, !Ref PrivateB]] }
+  CertificateArn: { Description: Validated production certificate, Value: !Ref Certificate }
+  ImageRepositoryArn: { Description: Service repository ARN parameter, Value: !GetAtt Repository.Arn }
+  ImageRepositoryUri: { Description: Push the qualified image to this repository, Value: !GetAtt Repository.RepositoryUri }
+  ConfigSecretArn: { Description: Empty secret requiring owner configuration, Value: !Ref ConfigSecret }
+  ConfigKeyArn: { Description: Service configuration key parameter, Value: !GetAtt ConfigKey.Arn }

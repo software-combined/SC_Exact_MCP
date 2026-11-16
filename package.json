@@ -1,28 +1,29 @@
 {
-  "name": "boostu-exactonline-mcp",
+  "name": "@software-combined/exact-mcp",
   "version": "1.0.0",
-  "mcpName": "io.github.boostuagency/boostu-exactonline-mcp",
-  "description": "Open-source MCP server for Exact Online. Use your accounting and ERP data in Claude and other AI assistants: relations, sales, purchasing, ledger, banking, VAT and reports.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "boostu-exactonline-mcp": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "NOTICE"
-  ],
+  "description": "SCG hosted personal-identity read-only Exact Online MCP, with a separate legacy stdio CLI.",
+  "type": "module",
+  "private": true,
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx src/hosted/main.ts",
+    "start": "node dist/hosted/main.js",
+    "dev:legacy": "tsx src/index.ts",
+    "start:legacy": "node dist/index.js",
+    "start:hosted": "node dist/hosted/main.js",
+    "dev:hosted": "tsx src/hosted/main.ts",
+    "config:generate": "node scripts/create-signing-config.mjs",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "validate:selects": "tsx scripts/validate-selects.ts",
-    "smoke:list": "tsx scripts/smoke-list-tools.ts"
+    "smoke:list": "tsx scripts/smoke-list-tools.ts",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "check:loc": "node scripts/check-loc.mjs",
+    "verify:infra": "node scripts/verify-infra.mjs",
+    "verify": "npm run check:architecture && npm run check:loc && npm run typecheck && npm test && npm run build && npm audit --omit=dev --audit-level=high"
   },
   "keywords": [
     "mcp",
@@ -41,28 +42,33 @@
     "kmo",
     "boostu"
   ],
-  "author": "BoostU Agency <nick@boostu.be> (https://boostu.be)",
+  "author": "Software Combined Group",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/boostuagency/boostu-exactonline-mcp.git"
+    "url": "git+https://github.com/software-combined/SC_Exact_MCP.git"
   },
-  "homepage": "https://github.com/boostuagency/boostu-exactonline-mcp#readme",
+  "homepage": "https://github.com/software-combined/SC_Exact_MCP#readme",
   "bugs": {
-    "url": "https://github.com/boostuagency/boostu-exactonline-mcp/issues"
+    "url": "https://github.com/software-combined/SC_Exact_MCP/issues"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "https://npm.aikido.io/29b12afe3a61ddbe0a375/@modelcontextprotocol/sdk@1.30.0-aikido.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "oidc-provider": "9.15.0",
+    "@aws-sdk/client-dynamodb": "3.1169.0",
+    "@aws-sdk/lib-dynamodb": "3.1169.0",
+    "@aws-sdk/client-kms": "3.1169.0",
+    "@aws-sdk/client-secrets-manager": "3.1169.0",
+    "jose": "6.1.2",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "@types/oidc-provider": "9.13.1",
+    "yaml": "2.9.1",
     "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "vitest": "^4.1.12"

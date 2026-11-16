@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22-alpine AS build
+FROM node:22-trixie-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -7,14 +7,15 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:22-trixie-slim
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production PORT=8080
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
-COPY --from=build /app/dist ./dist
-# The server starts and answers MCP introspection without credentials.
-# Provide EXACT_CLIENT_ID / EXACT_CLIENT_SECRET / EXACT_REFRESH_TOKEN at runtime
-# to actually call the Exact Online API. Mount a volume for EXACT_TOKEN_STORE so
-# the rotated refresh token survives container restarts.
-ENTRYPOINT ["node", "dist/index.js"]
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY --from=build --chown=node:node /app/dist ./dist
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+ENTRYPOINT ["node", "dist/hosted/main.js"]

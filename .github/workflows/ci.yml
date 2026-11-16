@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [development, main]
   pull_request:
-    branches: [main]
+    branches: [development, main]
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [22]
 
     steps:
       - uses: actions/checkout@v7
@@ -33,14 +33,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run typecheck
+      - name: Verify source and dependencies
+        run: npm run verify
 
-      - name: Test
-        run: npm test
+      - name: Install CloudFormation validators
+        run: |
+          pipx install cfn-lint==1.57.1
+          cargo install cfn-guard --version 3.2.1 --locked
 
-      - name: Build
-        run: npm run build
-
-      - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+      - name: Validate production infrastructure
+        run: npm run verify:infra

@@ -1,37 +1,26 @@
 ---
 name: Bug report
-about: Report unexpected behavior, errors, or incorrect results
+about: Report a sanitized source or behavior defect
 title: "[Bug] "
 labels: bug
 assignees: ""
 ---
 
-## Description
+## Problem
 
-A clear and concise description of what the bug is.
+Describe the unexpected result.
+Use fictional records.
 
-## Steps to reproduce
+## Reproduction
 
-1. Configure the MCP server with `...`
-2. Send the prompt `...`
-3. The tool `exact_...` is called with `...`
-4. See error
+1. State the source revision and client.
+2. List the sanitized steps.
+3. Describe the expected and actual result.
 
-## Expected behavior
+## Verification
 
-What you expected to happen.
+State whether the result came from a local test or an approved deployed environment.
+Include a request ID if useful.
+Do not paste financial rows, tokens, private configuration, or authorization URLs.
 
-## Actual behavior
-
-What actually happened. Include the full error message if available.
-
-## Environment
-
-- `boostu-exactonline-mcp` version:
-- Node.js version (`node --version`):
-- AI host (Claude Desktop / Claude Code / Cursor / Windsurf / other):
-- OS:
-
-## Additional context
-
-Paste relevant log output here. Remove any sensitive values (tokens, secrets) before posting.
+Report security issues through the private route in SECURITY.md.
