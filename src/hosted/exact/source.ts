@@ -18,7 +18,7 @@ const boundedRequest: SourceRequest = (read, signal) => read(signal ?
 export class ExactSource {
   readonly origin: string;
   constructor(readonly config: SourceConfig, private fetcher: typeof fetch = fetch, localTestOrigin?: string,
-    private request: SourceRequest = boundedRequest) {
+    private request: SourceRequest = boundedRequest, private reserveExchange = async () => fetcher) {
     if (localTestOrigin && !/^http:\/\/127\.0\.0\.1:\d+$/.test(localTestOrigin)) throw new Error("Only a loopback test origin is allowed.");
     this.origin = localTestOrigin ?? origins[config.region];
   }
@@ -28,25 +28,30 @@ export class ExactSource {
       response_type: "code", state }).toString();
     return url.href;
   }
-  async exchange(kind: "code" | "refresh", value: string, independent?: AbortSignal): Promise<SourceTokens> {
+  async prepareExchange() {
+    const fetcher = await this.reserveExchange();
+    return { exchange: (kind: "code" | "refresh", value: string, signal: AbortSignal) => this.exchange(kind, value, signal, fetcher),
+      me: (token: string, signal: AbortSignal) => this.me(token, signal, fetcher) };
+  }
+  async exchange(kind: "code" | "refresh", value: string, independent?: AbortSignal, fetcher = this.fetcher): Promise<SourceTokens> {
     const body = new URLSearchParams({ client_id: this.config.appId, client_secret: this.config.appSecret,
       grant_type: kind === "code" ? "authorization_code" : "refresh_token",
       ...(kind === "code" ? { code: value, redirect_uri: this.config.callback } : { refresh_token: value }) });
-    const response = await this.fetcher(`${this.origin}/api/oauth2/token`, { method: "POST", body,
+    const response = await fetcher(`${this.origin}/api/oauth2/token`, { method: "POST", body,
       redirect: "error", signal: independent ?? AbortSignal.timeout(15_000) });
     return tokenResponse(response);
   }
-  private async get(url: URL, token: string, signal?: AbortSignal): Promise<unknown> {
+  private async get(url: URL, token: string, signal?: AbortSignal, fetcher = this.fetcher): Promise<unknown> {
     return this.request(async (active) => {
-      const response = await this.fetcher(url, { method: "GET", redirect: "error", signal: active,
+      const response = await fetcher(url, { method: "GET", redirect: "error", signal: active,
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
       return jsonResponse(response);
     }, signal);
   }
-  async me(token: string, independent?: AbortSignal) {
+  async me(token: string, independent?: AbortSignal, fetcher = this.fetcher) {
     const url = new URL("/api/v1/current/Me", this.origin);
     url.searchParams.set("$select", "UserID,CurrentDivision,FullName");
-    const result = rowsEnvelope(await this.get(url, token, independent));
+    const result = rowsEnvelope(await this.get(url, token, independent, fetcher));
     const parsed = meSchema.safeParse(result.rows[0]);
     if (!parsed.success || result.rows.length !== 1 || result.next) {
       throw new ServiceError("reauth_required", "Exact identity could not be established. Reconnect.", 401);

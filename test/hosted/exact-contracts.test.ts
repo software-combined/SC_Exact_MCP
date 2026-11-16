@@ -4,9 +4,33 @@ import { inputs, type Query } from "../../src/hosted/domain/contracts.js";
 import { rowsEnvelope } from "../../src/hosted/exact/http.js";
 import { tokenResponse } from "../../src/hosted/exact/token-response.js";
 import { ExactSource } from "../../src/hosted/exact/source.js";
+import { MemoryStore } from "../../src/hosted/storage/memory.js";
+import { Budgets } from "../../src/hosted/runtime/budgets.js";
+import { SourceSlot } from "../../src/hosted/runtime/source-slot.js";
 import { invoiceRow, receivableRow, companyRow, customerRow, INVOICE, USER_A, USER_B } from "./records.js";
 
 describe("canonical Exact contracts", () => {
+  it("uses one reserved fixed token-and-Me pair and retains the shared REST slot", async () => {
+    const store = new MemoryStore(); const slot = new SourceSlot(store, "fictional-app");
+    const run = vi.spyOn(slot, "run");
+    const budgets = new Budgets(store, "fictional-app", { appCallsPerMinute: 2, appCallsPerDay: 2,
+      divisionCallsPerMinute: 2, divisionCallsPerDay: 2 });
+    const ordinary = vi.fn<typeof fetch>().mockRejectedValue(new Error("Ordinary fetch must not run."));
+    const reserved = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "fictional-access",
+        refresh_token: "fictional-refresh", token_type: "Bearer", expires_in: 600 })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ d: [{ UserID: USER_A, CurrentDivision: 123456, FullName: "Fictional user" }] })));
+    const source = new ExactSource({ appId: "fictional-app", appSecret: "fictional-secret", region: "nl",
+      callback: "https://fixture.invalid/exact/callback" }, ordinary, undefined,
+      (read, signal) => slot.run(read, signal), () => budgets.exchangeFetcher(reserved));
+    const pair = await source.prepareExchange(); const signal = AbortSignal.timeout(1000);
+    const tokens = await pair.exchange("code", "fictional-code", signal);
+    expect((await pair.me(tokens.accessToken, signal)).UserID).toBe(USER_A);
+    expect(reserved.mock.calls.map(([url, init]) => [new URL(url.toString()).pathname, init?.method]))
+      .toEqual([["/api/oauth2/token", "POST"], ["/api/v1/current/Me", "GET"]]);
+    expect(ordinary).not.toHaveBeenCalled(); expect(run).toHaveBeenCalledTimes(1);
+    await expect(budgets.call()).rejects.toMatchObject({ code: "limited" });
+  });
   it.each([
     { name: "companies", query: { operation: "company_discovery", input: {} }, row: companyRow,
       resource: "system/Divisions", filter: null, select: "Code,Description,Currency",

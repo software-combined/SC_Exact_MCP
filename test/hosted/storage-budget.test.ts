@@ -9,6 +9,30 @@ afterEach(() => vi.restoreAllMocks());
 const limits = { appCallsPerMinute: 10, divisionCallsPerMinute: 5, appCallsPerDay: 20, divisionCallsPerDay: 10 };
 
 describe("state and call controls", () => {
+  it.each([60_000, 86_400_000])("reserves reachable windows across a %i-ms boundary without counting twice", async (window) => {
+    let now = window - 10_000; const store = new MemoryStore(() => now);
+    const caps = { ...limits, appCallsPerMinute: 3, appCallsPerDay: 3 };
+    const a = new Budgets(store, "fixture-app", caps, () => now); const b = new Budgets(store, "fixture-app", caps, () => now);
+    const upstream = vi.fn<typeof fetch>(async () => new Response(""));
+    const pair = await a.exchangeFetcher(upstream); now = window + 1;
+    await b.call(); await expect(b.call()).rejects.toMatchObject({ code: "limited" });
+    const results = await Promise.allSettled([pair("https://fixture.invalid/api/oauth2/token"),
+      pair("https://fixture.invalid/api/v1/current/Me"), pair("https://fixture.invalid/api/v1/current/Me")]);
+    expect(results.map((result) => result.status)).toEqual(["fulfilled", "fulfilled", "rejected"]);
+    expect((results[2] as PromiseRejectedResult).reason).toMatchObject({ code: "unavailable" });
+    expect(upstream).toHaveBeenCalledTimes(2);
+  });
+  it("expires unused pair admission before issuance and honors a later provider cooldown", async () => {
+    let now = 1_000_000; const store = new MemoryStore(() => now);
+    const a = new Budgets(store, "fixture-app", limits, () => now); const b = new Budgets(store, "fixture-app", limits, () => now);
+    const upstream = vi.fn<typeof fetch>(async () => new Response("")); const expired = await a.exchangeFetcher(upstream);
+    now += 30_001; await expect(expired("https://fixture.invalid/api/oauth2/token")).rejects.toMatchObject({ code: "limited" });
+    expect(upstream).not.toHaveBeenCalled();
+    const pair = await a.exchangeFetcher(upstream); await pair("https://fixture.invalid/api/oauth2/token");
+    await b.fetcher(async () => new Response("", { status: 429, headers: { "Retry-After": "120" } }))("https://fixture.invalid/api/v1/123456/crm/Accounts");
+    await expect(pair("https://fixture.invalid/api/v1/current/Me")).rejects.toMatchObject({ code: "limited" });
+    expect(upstream).toHaveBeenCalledTimes(1); await expect(b.call()).rejects.toMatchObject({ code: "limited" });
+  });
   it("keeps the two-request person limit shared across clients and replicas", async () => {
     const store = new MemoryStore(); const a = new Budgets(store, "fixture-app", limits); const b = new Budgets(store, "fixture-app", limits);
     const releaseA = await a.person("nl:fixture-user"); const releaseB = await b.person("nl:fixture-user");

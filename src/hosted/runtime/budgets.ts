@@ -5,7 +5,7 @@ import { update } from "../storage/state.js";
 export interface Limits { appCallsPerMinute: number; divisionCallsPerMinute: number;
   appCallsPerDay: number; divisionCallsPerDay: number }
 interface Window { period: number; app: number; divisions: Record<string, number> }
-interface Usage { minute: Window; day: Window }
+interface Usage { minute: Window[]; day: Window[] }
 export class Budgets {
   constructor(private store: StateStore, private app: string, private limits: Limits, private now = () => Date.now()) {}
   /** Caller enforces the 25-second request deadline; the 30-second lease also recovers crashed callers. */
@@ -21,34 +21,53 @@ export class Budgets {
       const result = { ...old }; delete result[id]; return result;
     }, this.now() + 60_000); };
   }
-  async call(division?: string) {
+  private async cooldown(division?: string) {
     for (const scope of ["app", ...(division ? [`division:${division}`] : [])]) {
       const hold = await this.store.read<number>(`cooldown:${this.app}:${scope}`);
       if (hold && hold.value > this.now()) throw new ServiceError("limited", "Exact's shared retry cooldown is active. Retry later.", 429);
     }
+  }
+  async call(division?: string, count = 1, through = this.now()) {
+    await this.cooldown(division);
     // Admit every applicable limit in one CAS: a rejected division must not spend app allowance.
     await update<Usage>(this.store, `budget:source:${this.app}`, (old) => {
-      const window = (previous: Window | undefined, ms: number): Window => {
-        const period = Math.floor(this.now() / ms);
-        return previous?.period === period ? previous : { period, app: 0, divisions: {} };
-      };
-      const minute = window(old?.minute, 60_000); const day = window(old?.day, 86_400_000);
-      for (const [usage, appMax, divisionMax] of [[minute, this.limits.appCallsPerMinute, this.limits.divisionCallsPerMinute],
-        [day, this.limits.appCallsPerDay, this.limits.divisionCallsPerDay]] as const) {
-        if (usage.app >= appMax || (division && (usage.divisions[division] ?? 0) >= divisionMax)) {
-          throw new ServiceError("limited", "The configured shared source-call budget is exhausted. Retry after its window resets.", 429);
+      const admit = (previous: Window[] = [], ms: number, appMax: number, divisionMax: number) => {
+        const current = Math.floor(this.now() / ms);
+        const windows = new Map(previous.filter((window) => window.period >= current).map((window) => [window.period, window]));
+        for (let period = current; period <= Math.max(current, Math.floor(through / ms)); period++) {
+          const usage = windows.get(period) ?? { period, app: 0, divisions: {} };
+          if (usage.app + count > appMax || (division && (usage.divisions[division] ?? 0) + count > divisionMax)) {
+            throw new ServiceError("limited", "The configured shared source-call budget is exhausted. Retry after its window resets.", 429);
+          }
+          windows.set(period, { ...usage, app: usage.app + count,
+            divisions: division ? { ...usage.divisions, [division]: (usage.divisions[division] ?? 0) + count } : usage.divisions });
         }
-      }
-      const increment = (usage: Window): Window => ({ ...usage, app: usage.app + 1,
-        divisions: division ? { ...usage.divisions, [division]: (usage.divisions[division] ?? 0) + 1 } : usage.divisions });
-      return { minute: increment(minute), day: increment(day) };
+        return [...windows.values()];
+      };
+      return { minute: admit(old?.minute, 60_000, this.limits.appCallsPerMinute, this.limits.divisionCallsPerMinute),
+        day: admit(old?.day, 86_400_000, this.limits.appCallsPerDay, this.limits.divisionCallsPerDay) };
     });
   }
   fetcher(fetcher: typeof fetch = fetch): typeof fetch {
+    return this.tracked(fetcher, (division) => this.call(division));
+  }
+  async exchangeFetcher(fetcher: typeof fetch = fetch): Promise<typeof fetch> {
+    const through = this.now() + 45_000;
+    await this.call(undefined, 2, through);
+    let remaining = 2;
+    // Unused identity-pair reservations stay spent after cancellation or rejection.
+    return this.tracked(fetcher, async () => {
+      if (remaining <= 0) throw new ServiceError("unavailable", "The reserved Exact identity pair was already used.");
+      const first = remaining-- === 2;
+      await this.cooldown();
+      if (first && this.now() + 15_000 > through) throw new ServiceError("limited", "The Exact identity reservation expired before issuance. Retry.", 429);
+    });
+  }
+  private tracked(fetcher: typeof fetch, admit: (division?: string) => Promise<void>): typeof fetch {
     return async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input.toString());
       const division = /^\/api\/v1\/(\d+)\//.exec(url.pathname)?.[1];
-      await this.call(division);
+      await admit(division);
       const response = await fetcher(input, init);
       if (response.status === 429) {
         const retry = response.headers.get("Retry-After");
