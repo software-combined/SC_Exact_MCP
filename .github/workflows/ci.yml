@@ -35,3 +35,11 @@ jobs:
 
       - name: Verify source and dependencies
         run: npm run verify
+
+      - name: Install CloudFormation validators
+        run: |
+          pipx install cfn-lint==1.57.1
+          cargo install cfn-guard --version 3.2.1 --locked
+
+      - name: Validate production infrastructure
+        run: npm run verify:infra

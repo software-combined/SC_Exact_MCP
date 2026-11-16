@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SCG personal Exact read-only MCP production service with two-zone availability.
+Parameters:
+  VpcId: { Type: 'AWS::EC2::VPC::Id' }
+  VpcCidr: { Type: String, Description: CIDR of the selected VPC }
+  PublicSubnets: { Type: 'List<AWS::EC2::Subnet::Id>', Description: Two ALB subnets in separate availability zones }
+  PrivateSubnets: { Type: 'List<AWS::EC2::Subnet::Id>', Description: Private task subnets with working HTTPS egress through NAT }
+  CertificateArn: { Type: String, Description: Validated ACM certificate for the production host in the selected approved EU region }
+  Hostname: { Type: String, AllowedPattern: '^[a-z0-9.-]+$', Description: Approved production DNS host without scheme or path }
+  HostedZoneId: { Type: 'AWS::Route53::HostedZone::Id' }
+  ImageUri: { Type: String, AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.(eu-central-1|eu-west-1)\.amazonaws\.com/[a-z0-9/_-]+@sha256:[a-f0-9]{64}$' }
+  ImageRepositoryArn: { Type: String, Description: Exact ECR repository ARN for the qualified image }
+  ConfigSecretArn: { Type: String, NoEcho: true, Description: Existing Secrets Manager JSON configuration ARN. Never its value. }
+  ConfigKeyArn: { Type: String, Description: KMS key ARN protecting the configuration secret }
+  ExactAppId: { Type: String, Description: Dedicated SCG MCP Exact application ID matching the runtime secret }
+  AppCallsPerMinute: { Type: Number, MinValue: 1, Description: Operator-approved shared app budget; no assumed Exact quota }
+  DivisionCallsPerMinute: { Type: Number, MinValue: 1, Description: Budget within verified Exact app and division allowance }
+  AppCallsPerDay: { Type: Number, MinValue: 1, Description: Operator-approved shared app daily budget }
+  DivisionCallsPerDay: { Type: Number, MinValue: 1, Description: Budget within verified Exact app and division daily allowance }
+  DesiredCount: { Type: Number, Default: 2, MinValue: 2, Description: At least two replicas across the selected availability zones }
+  TagOwner: { Type: String, Description: Approved accountable owner tag }
+  TagDataClass: { Type: String, Description: Approved data classification tag }
+  TagRetentionClass: { Type: String, Description: Approved retention class tag }
+  TagReviewBy: { Type: String, Description: Approved review date tag }
+Rules:
+  ApprovedEuropeOnly:
+    Assertions:
+      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
+        AssertDescription: This production template may run only in Frankfurt or Ireland.
+Resources:
+  DataKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Production Exact credential envelope and shared-state key
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root' }
+            Action: 'kms:*'
+            Resource: '*'
+  State:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{ AttributeName: pk, AttributeType: S }]
+      KeySchema: [{ AttributeName: pk, KeyType: HASH }]
+      TimeToLiveSpecification: { AttributeName: ttl, Enabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true, SSEType: KMS, KMSMasterKeyId: !GetAtt DataKey.Arn }
+      DeletionProtectionEnabled: true
+  Logs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: { RetentionInDays: 30 }
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterSettings: [{ Name: containerInsights, Value: enabled }]
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { 'aws:SourceAccount': !Ref 'AWS::AccountId' }
+              ArnLike: { 'aws:SourceArn': !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*' }
+      Policies:
+        - PolicyName: RuntimeOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']
+                Resource: !GetAtt State.Arn
+              - Effect: Allow
+                Action: ['kms:GenerateDataKey', 'kms:Decrypt']
+                Resource: !GetAtt DataKey.Arn
+                Condition:
+                  StringEquals: { 'kms:EncryptionContext:app': !Ref ExactAppId }
+                  StringLike: { 'kms:EncryptionContext:principal': !Sub 'connection:${ExactAppId}:*' }
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref ConfigSecretArn
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !GetAtt DataKey.Arn
+                Condition:
+                  StringEquals:
+                    'kms:ViaService': !Sub 'dynamodb.${AWS::Region}.amazonaws.com'
+                    'kms:EncryptionContext:aws:dynamodb:tableName': !Ref State
+                    'kms:EncryptionContext:aws:dynamodb:subscriberId': !Ref 'AWS::AccountId'
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !Ref ConfigKeyArn
+                Condition:
+                  StringEquals: { 'kms:ViaService': !Sub 'secretsmanager.${AWS::Region}.amazonaws.com' }
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { 'aws:SourceAccount': !Ref 'AWS::AccountId' }
+              ArnLike: { 'aws:SourceArn': !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*' }
+      Policies:
+        - PolicyName: ImageAndMetadataLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchCheckLayerAvailability']
+                Resource: !Ref ImageRepositoryArn
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents']
+                Resource: !GetAtt Logs.Arn
+  AlbGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTPS only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress: [{ IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }]
+      SecurityGroupEgress: [{ IpProtocol: tcp, FromPort: 8080, ToPort: 8080, CidrIp: !Ref VpcCidr }]
+  TaskGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB to app, outbound HTTPS to Exact and AWS through NAT
+      VpcId: !Ref VpcId
+      SecurityGroupIngress: [{ IpProtocol: tcp, FromPort: 8080, ToPort: 8080, SourceSecurityGroupId: !Ref AlbGroup }]
+      SecurityGroupEgress: [{ IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }]
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Type: application
+      Subnets: !Ref PublicSubnets
+      SecurityGroups: [!Ref AlbGroup]
+      LoadBalancerAttributes:
+        - { Key: routing.http.drop_invalid_header_fields.enabled, Value: 'true' }
+        - { Key: routing.http.desync_mitigation_mode, Value: strictest }
+        - { Key: idle_timeout.timeout_seconds, Value: '40' }
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /health
+      Matcher: { HttpCode: '200' }
+      TargetGroupAttributes: [{ Key: deregistration_delay.timeout_seconds, Value: '40' }]
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates: [{ CertificateArn: !Ref CertificateArn }]
+      DefaultActions: [{ Type: forward, TargetGroupArn: !Ref TargetGroup }]
+  Dns:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref Hostname
+      Type: A
+      AliasTarget: { DNSName: !GetAtt LoadBalancer.DNSName, HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID }
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: '512'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      RuntimePlatform: { CpuArchitecture: X86_64, OperatingSystemFamily: LINUX }
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      Tags:
+        - { Key: Project, Value: SCG-Exact-MCP }
+        - { Key: System, Value: Exact-MCP }
+        - { Key: Environment, Value: production }
+        - { Key: Owner, Value: !Ref TagOwner }
+        - { Key: ManagedBy, Value: CloudFormation }
+        - { Key: DataClass, Value: !Ref TagDataClass }
+        - { Key: RetentionClass, Value: !Ref TagRetentionClass }
+        - { Key: ReviewBy, Value: !Ref TagReviewBy }
+        - { Key: Company, Value: SoftwareCombined }
+      ContainerDefinitions:
+        - Name: exact-mcp
+          Image: !Ref ImageUri
+          Essential: true
+          User: node
+          ReadonlyRootFilesystem: true
+          StopTimeout: 60
+          PortMappings: [{ ContainerPort: 8080, Protocol: tcp }]
+          Environment:
+            - { Name: NODE_ENV, Value: production }
+            - { Name: PORT, Value: '8080' }
+            - { Name: SCG_ENVIRONMENT, Value: production }
+            - { Name: AWS_REGION, Value: !Ref 'AWS::Region' }
+            - { Name: SCG_ORIGIN, Value: !Sub 'https://${Hostname}' }
+            - { Name: SCG_STATE_TABLE, Value: !Ref State }
+            - { Name: SCG_KMS_KEY_ARN, Value: !GetAtt DataKey.Arn }
+            - { Name: SCG_CONFIG_SECRET_ARN, Value: !Ref ConfigSecretArn }
+            - { Name: SCG_EXACT_APP_ID, Value: !Ref ExactAppId }
+            - { Name: SCG_APP_CALLS_PER_MINUTE, Value: !Ref AppCallsPerMinute }
+            - { Name: SCG_DIVISION_CALLS_PER_MINUTE, Value: !Ref DivisionCallsPerMinute }
+            - { Name: SCG_APP_CALLS_PER_DAY, Value: !Ref AppCallsPerDay }
+            - { Name: SCG_DIVISION_CALLS_PER_DAY, Value: !Ref DivisionCallsPerDay }
+          HealthCheck:
+            Command: [CMD-SHELL, 'node -e "fetch(''http://127.0.0.1:8080/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 20
+          LogConfiguration:
+            LogDriver: awslogs
+            Options: { awslogs-group: !Ref Logs, awslogs-region: !Ref 'AWS::Region', awslogs-stream-prefix: app, mode: blocking }
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      PlatformVersion: LATEST
+      DesiredCount: !Ref DesiredCount
+      AvailabilityZoneRebalancing: ENABLED
+      TaskDefinition: !Ref Task
+      EnableExecuteCommand: false
+      EnableECSManagedTags: true
+      PropagateTags: TASK_DEFINITION
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+        DeploymentCircuitBreaker: { Enable: true, Rollback: true }
+      NetworkConfiguration:
+        AwsvpcConfiguration: { AssignPublicIp: DISABLED, Subnets: !Ref PrivateSubnets, SecurityGroups: [!Ref TaskGroup] }
+      LoadBalancers: [{ ContainerName: exact-mcp, ContainerPort: 8080, TargetGroupArn: !Ref TargetGroup }]
+Outputs:
+  Origin: { Description: Production issuer and origin, Value: !Sub 'https://${Hostname}' }
+  McpUrl: { Description: Production MCP endpoint, Value: !Sub 'https://${Hostname}/mcp' }
+  StateTable: { Description: Retained shared state table, Value: !Ref State }
+  CredentialKey: { Description: Principal-bound credential key, Value: !GetAtt DataKey.Arn }

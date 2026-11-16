@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Optional dedicated-account CloudTrail baseline. No organization trail or financial data events.
+Parameters:
+  TargetAccountId: { Type: String, NoEcho: true, AllowedPattern: '^[0-9]{12}$', Description: Verified dedicated child account ID }
+  ManagementAccountId: { Type: String, NoEcho: true, AllowedPattern: '^[0-9]{12}$', Description: Verified billing management account ID must differ from the target }
+Rules:
+  DedicatedAccountOnly:
+    Assertions:
+      - Assert: !Equals [!Ref 'AWS::AccountId', !Ref TargetAccountId]
+        AssertDescription: The current account must match the verified dedicated target.
+      - Assert: !Not [!Equals [!Ref TargetAccountId, !Ref ManagementAccountId]]
+        AssertDescription: Do not deploy this new-account baseline in the management account.
+      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
+        AssertDescription: Create the trail home only in Frankfurt or Ireland.
+Resources:
+  AuditKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Dedicated-account CloudTrail log and digest encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root' }
+            Action: 'kms:*'
+            Resource: '*'
+          - Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: 'kms:GenerateDataKey*'
+            Resource: '*'
+            Condition:
+              StringEquals: { 'aws:SourceArn': !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}' }
+              StringLike: { 'kms:EncryptionContext:aws:cloudtrail:arn': !Sub 'arn:${AWS::Partition}:cloudtrail:*:${AWS::AccountId}:trail/${AWS::StackName}' }
+          - Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals: { 'aws:SourceArn': !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}' }
+  AuditBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls: { Rules: [{ ObjectOwnership: BucketOwnerEnforced }] }
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }]
+  AuditBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref AuditBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudTrailAclCheck
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt AuditBucket.Arn
+            Condition:
+              StringEquals: { 'aws:SourceArn': !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}' }
+          - Sid: CloudTrailDelivery
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub '${AuditBucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+            Condition:
+              StringEquals:
+                'aws:SourceArn': !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}'
+                's3:x-amz-acl': bucket-owner-full-control
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt AuditBucket.Arn, !Sub '${AuditBucket.Arn}/*']
+            Condition: { Bool: { 'aws:SecureTransport': false, 'aws:PrincipalIsAWSService': false } }
+  Trail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn: AuditBucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      # Stack names cannot change during an update; retained delivery policies stay bound.
+      TrailName: !Ref 'AWS::StackName'
+      IsLogging: true
+      IsMultiRegionTrail: true
+      IncludeGlobalServiceEvents: true
+      IsOrganizationTrail: false
+      EnableLogFileValidation: true
+      KMSKeyId: !GetAtt AuditKey.Arn
+      S3BucketName: !Ref AuditBucket
+      EventSelectors: [{ IncludeManagementEvents: true, ReadWriteType: All }]
+Outputs:
+  TrailArn: { Description: Dedicated-account audit trail ARN, Value: !GetAtt Trail.Arn }
+  AuditBucket: { Description: Retained private log and digest bucket, Value: !Ref AuditBucket }
