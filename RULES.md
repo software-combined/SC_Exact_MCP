@@ -16,7 +16,9 @@ Email addresses, AI client IDs, tool arguments, and browser claims cannot select
 another person's connection. Each AI client has a separate OAuth grant and
 audience-bound SCG access token. Source tokens stay encrypted on the server.
 
-Only `exact.read` is granted. Use authorization code with S256 proof key for code
+Only `exact.read` resource access is granted. The optional `openid` identity
+scope returns the canonical subject without profile or email claims.
+Use authorization code with S256 proof key for code
 exchange (PKCE), exact registered callback URLs, and three static registrations.
 Public dynamic registration, password grants, implicit grants, and source-token
 passthrough are forbidden. Check the active grant and connection generation on
@@ -34,3 +36,9 @@ amounts, untrusted continuation URLs, and failed permission checks fail closed.
 
 Run local mocked qualification before review. Real Exact permissions, the three
 staff clients, deployment health, and owner acceptance are separate gates.
+
+This repository is public. Never commit credentials, real customer or business
+records, private contacts, or live deployment identifiers. Keep deployment
+configuration outside Git. Clearly fictional fixtures and fixed protocol,
+schema, and security constants are permitted. Review current files, reachable
+history, and commit metadata before publication.
