@@ -12,7 +12,7 @@ export class ExchangeGate {
   async assertReadable(): Promise<number> {
     const gate = await this.status();
     if (gate.uncertain || (gate.attempt && gate.until! <= this.now())) {
-      throw new ServiceError("reauth_required", "An Exact credential exchange is uncertain. IT must reconcile the app before reconnecting.", 401);
+      throw new ServiceError("reauth_required", "An Exact credential exchange is uncertain. Contact Software Combined IT before you reconnect.", 401);
     }
     return gate.epoch;
   }
@@ -49,7 +49,7 @@ export class ExchangeGate {
     const current = await this.store.read<Gate>(this.key);
     if (current?.value.attempt !== lease.attempt || current.version !== lease.version || current.value.epoch !== lease.epoch || current.value.until! <= this.now() ||
       !await this.store.write(this.key, { epoch: lease.epoch }, current.version)) {
-      throw new ServiceError("reauth_required", "Credential persistence is uncertain. IT must reconcile the app.", 401);
+      throw new ServiceError("reauth_required", "Credential persistence is uncertain. Contact Software Combined IT.", 401);
     }
   }
   async uncertain(lease: Lease) {

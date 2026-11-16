@@ -38,9 +38,11 @@ They store continuation metadata, not financial rows.
 They reject changed, repeated, or unsafe source continuations.
 A failed continuation requires a fresh query.
 
-Logs contain request ID, outcome, status, and duration.
+Logs contain request ID, route label, outcome, status, and duration.
+A failed request can add a fixed detail label, such as `connect:identity:reauth_required`.
+The label names the failed step and error class. It never contains source data or error text.
 Do not enable request-body, authorization-header, token-endpoint, or financial-response logging.
-Use request IDs to investigate failures.
+Use request IDs to investigate failures. Staff see the request ID as the reference on sign-in error pages.
 
 ## Refresh behavior
 
@@ -131,6 +133,10 @@ An expired lease alone is not sufficient authority to reconcile.
 ## Rollback and retained state
 
 Rollback can replace the application image with a compatible reviewed image.
+A compatible image accepts every Exact GUID that the current image accepts.
+Images built before generic GUID support accept only RFC-format GUIDs.
+After any person connects, do not roll back to such an image, and do not run it beside the current image.
+Its token refresh rejects other Exact user IDs and puts the app into an uncertain exchange. Roll forward instead.
 Keep the current shared table and encryption keys.
 Never roll credentials back to an older snapshot.
 An old refresh token may already be invalid.
