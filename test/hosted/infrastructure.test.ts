@@ -17,6 +17,8 @@ describe("production deployment safety", () => {
     expect(env.SCG_EXACT_APP_ID).toBe("ExactAppId");
     expect(Object.keys(env)).not.toContain("EXACT_REFRESH_TOKEN");
     expect(t.Parameters.AppCallsPerDay.Default).toBeUndefined();
+    expect(t.Parameters.AppCallsPerMinute.MinValue).toBe(8);
+    expect(t.Parameters.AppCallsPerDay.MinValue).toBe(8);
     expect(t.Parameters.DivisionCallsPerDay.Default).toBeUndefined();
     const image = (region: string) => `123456789012.dkr.ecr.${region}.amazonaws.com/fixture@sha256:${"a".repeat(64)}`;
     const allowedImage = new RegExp(t.Parameters.ImageUri.AllowedPattern);

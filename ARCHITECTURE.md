@@ -52,6 +52,8 @@ Ownership, epoch, and remaining time are checked before a source exchange starts
 The fixed token-and-identity pair reserves both calls in every minute and day its bounded admission can reach.
 An upstream cooldown still blocks identity validation; missing verified identity requires fail-closed reconciliation.
 Unused reserved calls remain spent after cancellation or rejection.
+The public sign-in pool permits at most one quarter of each app budget.
+It protects configured capacity for existing grants; it cannot guarantee provider availability or new sign-in access.
 Operator reconciliation requires stopping and confirming all old writers first.
 Lease expiry alone cannot prove that an old writer will not resume.
 

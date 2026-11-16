@@ -9,6 +9,25 @@ afterEach(() => vi.restoreAllMocks());
 const limits = { appCallsPerMinute: 10, divisionCallsPerMinute: 5, appCallsPerDay: 20, divisionCallsPerDay: 10 };
 
 describe("state and call controls", () => {
+  it("keeps the quarter-sized daily sign-in cap after the minute window resets", async () => {
+    let now = 1_000_000; const store = new MemoryStore(() => now);
+    const caps = { ...limits, appCallsPerMinute: 64, appCallsPerDay: 16 };
+    const a = new Budgets(store, "fixture-app", caps, () => now).signIns();
+    const b = new Budgets(store, "fixture-app", caps, () => now).signIns();
+    await a.call(undefined, 2, now + 45_000); await b.call(undefined, 2, now + 45_000);
+    now += 60_001;
+    await expect(b.call(undefined, 2, now + 45_000)).rejects.toMatchObject({ code: "limited" });
+  });
+  it("bounds shared public sign-ins to a quarter pool while preserving the normal source budget", async () => {
+    const store = new MemoryStore(); const caps = { ...limits, appCallsPerMinute: 16, appCallsPerDay: 16 };
+    const a = new Budgets(store, "fixture-app", caps); const b = new Budgets(store, "fixture-app", caps);
+    await a.signIns().call(undefined, 2, Date.now() + 45_000);
+    await b.signIns().call(undefined, 2, Date.now() + 45_000);
+    await expect(a.signIns().call(undefined, 2, Date.now() + 45_000)).rejects.toMatchObject({ code: "limited" });
+    await expect(b.call(undefined, 12)).resolves.toBeUndefined();
+    expect(() => new Budgets(store, "fixture-app", { ...caps, appCallsPerMinute: 7 }).signIns()).toThrow(/at least eight/);
+    expect(() => new Budgets(store, "fixture-app", { ...caps, appCallsPerDay: 7 }).signIns()).toThrow(/at least eight/);
+  });
   it.each([60_000, 86_400_000])("reserves reachable windows across a %i-ms boundary without counting twice", async (window) => {
     let now = window - 10_000; const store = new MemoryStore(() => now);
     const caps = { ...limits, appCallsPerMinute: 3, appCallsPerDay: 3 };

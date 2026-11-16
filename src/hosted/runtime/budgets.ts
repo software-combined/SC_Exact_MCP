@@ -8,6 +8,14 @@ interface Window { period: number; app: number; divisions: Record<string, number
 interface Usage { minute: Window[]; day: Window[] }
 export class Budgets {
   constructor(private store: StateStore, private app: string, private limits: Limits, private now = () => Date.now()) {}
+  signIns(): Budgets {
+    if (this.limits.appCallsPerMinute < 8 || this.limits.appCallsPerDay < 8) {
+      throw new Error("App budgets must allow at least eight calls for bounded public sign-in admission.");
+    }
+    return new Budgets(this.store, `${this.app}:sign-in`, { ...this.limits,
+      appCallsPerMinute: Math.floor(this.limits.appCallsPerMinute / 4),
+      appCallsPerDay: Math.floor(this.limits.appCallsPerDay / 4) }, this.now);
+  }
   /** Caller enforces the 25-second request deadline; the 30-second lease also recovers crashed callers. */
   async person(subject: string): Promise<() => Promise<void>> {
     const key = `budget:person:${this.app}:${subject}`;

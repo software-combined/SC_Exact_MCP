@@ -13,9 +13,9 @@ Parameters:
   ConfigSecretArn: { Type: String, NoEcho: true, Description: Existing Secrets Manager JSON configuration ARN. Never its value. }
   ConfigKeyArn: { Type: String, Description: KMS key ARN protecting the configuration secret }
   ExactAppId: { Type: String, Description: Dedicated SCG MCP Exact application ID matching the runtime secret }
-  AppCallsPerMinute: { Type: Number, MinValue: 1, Description: Operator-approved shared app budget; no assumed Exact quota }
+  AppCallsPerMinute: { Type: Number, MinValue: 8, Description: Operator-approved shared app budget; no assumed Exact quota }
   DivisionCallsPerMinute: { Type: Number, MinValue: 1, Description: Budget within verified Exact app and division allowance }
-  AppCallsPerDay: { Type: Number, MinValue: 1, Description: Operator-approved shared app daily budget }
+  AppCallsPerDay: { Type: Number, MinValue: 8, Description: Operator-approved shared app daily budget }
   DivisionCallsPerDay: { Type: Number, MinValue: 1, Description: Budget within verified Exact app and division daily allowance }
   DesiredCount: { Type: Number, Default: 2, MinValue: 2, Description: At least two replicas across the selected availability zones }
   TagOwner: { Type: String, Description: Approved accountable owner tag }
