@@ -29,6 +29,10 @@ export interface Principal {
   generation: number;
 }
 
+// Exact tokens are opaque printable ASCII and include characters such as "!".
+// Reject spaces and control characters so a token can never break an HTTP header.
+export const sourceTokenText = z.string().min(1).max(16_384).regex(/^[\x21-\x7E]+$/);
+
 export interface SourceTokens {
   accessToken: string;
   refreshToken: string;

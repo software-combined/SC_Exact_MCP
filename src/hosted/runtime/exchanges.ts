@@ -1,25 +1,24 @@
 import { randomBytes } from "node:crypto";
 import { ServiceError, type StateStore } from "../domain/identity.js";
 
-interface Gate { epoch: number; attempt?: string; until?: number; uncertain?: boolean }
+interface Gate { epoch: number; attempt?: string; until?: number }
 interface Lease { attempt: string; epoch: number; version: string; until: number }
 
-/** Never expires by TTL: an abandoned exchange must remain visible after restart. */
+/**
+ * Serializes Exact token exchanges for one app. A lease that expires was abandoned (crash or overrun);
+ * the next exchange takes it over. An unsaved or rotated token then only makes that person sign in again,
+ * because Exact refuses the stale refresh token and the refresh path marks the connection for sign-in.
+ */
 export class ExchangeGate {
   readonly key: string;
   constructor(private store: StateStore, app: string, private now = () => Date.now()) { this.key = `exchange:${app}`; }
   async status(): Promise<Gate> { return (await this.store.read<Gate>(this.key))?.value ?? { epoch: 1 }; }
-  async assertReadable(): Promise<number> {
-    const gate = await this.status();
-    if (gate.uncertain || (gate.attempt && gate.until! <= this.now())) {
-      throw new ServiceError("reauth_required", "An Exact credential exchange is uncertain. Contact Software Combined IT before you reconnect.", 401);
-    }
-    return gate.epoch;
-  }
+  async epoch(): Promise<number> { return (await this.status()).epoch; }
   async acquire(): Promise<Lease> {
     const old = await this.store.read<Gate>(this.key);
-    await this.assertReadable();
-    if (old?.value.attempt) throw new ServiceError("conflict", "Another credential exchange is running. Retry shortly.", 409);
+    if (old?.value.attempt && old.value.until! > this.now()) {
+      throw new ServiceError("conflict", "Another credential exchange is running. Retry shortly.", 409);
+    }
     const attempt = randomBytes(24).toString("base64url");
     const value: Gate = { epoch: old?.value.epoch ?? 1, attempt, until: this.now() + 30_000 };
     const version = await this.store.write(this.key, value, old?.version);
@@ -45,28 +44,23 @@ export class ExchangeGate {
       throw new ServiceError("conflict", "The exchange has insufficient lease time. Start again.", 409);
     }
   }
+  /** Best effort: if the release fails, the lease expires within 60 seconds and the next exchange takes it over. */
   async complete(lease: Lease) {
-    const current = await this.store.read<Gate>(this.key);
-    if (current?.value.attempt !== lease.attempt || current.version !== lease.version || current.value.epoch !== lease.epoch || current.value.until! <= this.now() ||
-      !await this.store.write(this.key, { epoch: lease.epoch }, current.version)) {
-      throw new ServiceError("reauth_required", "Credential persistence is uncertain. Contact Software Combined IT.", 401);
-    }
-  }
-  async uncertain(lease: Lease) {
-    // Preserve pending state if even this best-effort write fails.
     const current = await this.store.read<Gate>(this.key).catch(() => undefined);
     if (current?.value.attempt === lease.attempt && current.version === lease.version) {
-      await this.store.write(this.key, { ...current.value, uncertain: true }, lease.version).catch(() => false);
+      await this.store.write(this.key, { epoch: lease.epoch }, current.version).catch(() => undefined);
     }
   }
-  async reconcileExpired() {
+  /** Operator tool: every saved connection stops working and each person signs in again. */
+  async revokeAll() {
     const old = await this.store.read<Gate>(this.key);
-    if (!old?.value.attempt || old.value.until! > this.now()) {
-      throw new ServiceError("conflict", "There is no expired uncertain exchange to reconcile.", 409);
+    // A missing row means a wrong app, region or table: refuse so the operator never sees a false success.
+    if (!old) throw new ServiceError("conflict", "No exchange state exists for this app and region. Nothing was changed.", 409);
+    if (old.value.attempt && old.value.until! > this.now()) {
+      throw new ServiceError("conflict", "A credential exchange is running. Retry after it finishes.", 409);
     }
-    // Every prior credential chain becomes unusable; each person must reconnect.
     if (!await this.store.write(this.key, { epoch: old.value.epoch + 1 }, old.version)) {
-      throw new ServiceError("conflict", "Exchange state changed. Re-read before reconciliation.", 409);
+      throw new ServiceError("conflict", "Exchange state changed. Retry.", 409);
     }
   }
 }
