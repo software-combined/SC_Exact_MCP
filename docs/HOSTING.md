@@ -162,6 +162,7 @@ The package has five files:
 | `color.png`, `outline.png` | 192 by 192 colour icon and 32 by 32 white outline icon |
 
 The script reads the tool list from the service code. It writes the list into `spec.mcp_tool_description.tools`, `run_for_functions` and `functions` in `plugin.json`.
+If a tool's description or inputs change, build the package with a higher version and upload it again. Copilot uses the copy in the package.
 
 The package must list the tools. Copilot shows the **Sign in** card only for a tool that the package lists.
 Without the list, a person who is not signed in sees no tools and gets no sign-in.

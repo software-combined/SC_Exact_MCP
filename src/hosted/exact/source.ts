@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Query } from "../domain/contracts.js";
-import { plan, type ReadPlan } from "./query-plan.js";
+import { matchPlan, plan, type MatchKind, type ReadPlan } from "./query-plan.js";
+import { pickMatch } from "./resolve.js";
 import { exactUserSchema, ServiceError, type Region, type SourceTokens } from "../domain/identity.js";
 import { changeResponse, jsonResponse, rowsEnvelope } from "./http.js";
 import type { ChangeRequest } from "./changes.js";
@@ -69,6 +70,7 @@ export class ExactSource {
     url.searchParams.set("$select", read.select);
     if (read.filter) url.searchParams.set("$filter", read.filter);
     if (read.orderBy) url.searchParams.set("$orderby", read.orderBy);
+    if (read.top) url.searchParams.set("$top", String(read.top));
     return url;
   }
   private continuation(base: URL, next: string): URL {
@@ -144,6 +146,16 @@ export class ExactSource {
       }
       throw new ServiceError("unavailable", "The change may or may not have been made in Exact. Check Exact before trying again.", 503, "change:unknown");
     }
+  }
+  /** Resolves a customer name or item text to one record ID with one bounded read, or asks the person to choose. */
+  async resolve(kind: MatchKind, text: string, division: number, token: string, signal: AbortSignal, strict = false): Promise<string> {
+    const page = rowsEnvelope(await this.get(this.url(division, matchPlan(kind, text)), token, signal));
+    // The lookup asks for 11 rows and shows at most 10. More than 10 rows, or a further page, means the candidate list
+    // is incomplete: a same-named record could be missing, so the lookup never picks one.
+    if (page.next || page.rows.length > 10) {
+      throw new ServiceError("invalid_input", "Too many records match that text. Give the exact name or code.", 400);
+    }
+    return pickMatch(kind, text, division, page.rows, strict);
   }
   async read(query: Query, division: number, token: string, signal: AbortSignal, continuation?: string) {
     const read = plan(query);

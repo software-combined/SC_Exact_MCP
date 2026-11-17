@@ -48,6 +48,7 @@ Three business write tools exist: create customer, update customer, and create a
 Their controls are fixed resources and fields, non-read-only tool markers for client permission settings,
 Exact's own permissions, and no automatic retry.
 Local tests cover the exact requests sent, Exact refusals, and an unknown outcome.
+They also prove that an unclear customer or item name sends no change.
 No send, book, pay, or delete operation exists. Reassess before adding one.
 Delegated-agent and broad-autonomy controls are inapplicable because the service contains neither capability.
 Reassess them before introducing a model or dynamic orchestration.
@@ -79,7 +80,7 @@ Never record financial rows, source tokens, authorization codes, or raw error pa
 4. Confirm S256, exact callbacks, fixed audience, and disabled public registration.
 5. Sign in with the approved first test user through the dedicated MCP app.
 6. Confirm the displayed Exact user before client consent.
-7. Find a known company, customer, invoice, and outstanding item.
+7. Find a known company, customer, invoice, and outstanding item, by name and with no filter.
 8. Compare their values in Exact without copying financial rows into evidence.
 9. Check a real next page and its explicit coverage.
 10. Confirm that a company outside this app's approved consent is denied.
@@ -140,6 +141,11 @@ Fixed projections follow the official resources for
 [journals](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=FinancialJournals) (type 20 is sales; `IsBlocked`),
 and [sales invoice lines](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SalesInvoiceSalesInvoiceLines).
 Change bodies follow the same customer and sales invoice pages: a new invoice is Open (not processed) until printed or processed in Exact.
+
+The optional filters use `City`, `Email`, `VATNumber`, `InvoiceTo`, `InvoiceDate` and `Status`.
+These names come from the Exact documentation and the property list in `test/fixtures/exact-properties.json`.
+The filters, the newest-first invoice order and the name lookups are verified only against documentation and the local fake source, not on live Exact.
+The invoice status labels (5 draft, 20 open, 50 processed) come from [the legacy reference](exact-endpoints.md) and are not verified live.
 
 Shared-table permissions also account for
 [DynamoDB encryption context](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/encryption.usagenotes.html).

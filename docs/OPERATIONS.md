@@ -22,6 +22,13 @@ Structured output that the AI model can see is limited to 64,000 bytes.
 A normal company discovery makes one source read.
 A customer, invoice, or receivables query makes two source reads.
 The first read confirms the company and its source metadata.
+A customer or item name instead of an ID adds one lookup read of at most 11 rows for each name, on every page.
+A change can name at most 5 different items. If its lookups do not finish before the send cut-off, nothing is changed.
+A change uses a name only when it equals the full name or code of one record. A lookup reads at most 11 rows. If more than 10 match, it picks no record.
+A cursor for a named customer keeps the record that the name matched. A later page for a different record is refused.
+A `limit` shorter than Exact's page returns fewer rows. The next cursor reads the same Exact page again and returns the next rows.
+If a record is added or removed in that page between two calls, the next rows can skip or repeat one record. Ask again from the start for a fixed list.
+The service does not send Exact's `$top` for pages, because `$top` switches off Exact's paging.
 A required refresh can add one token exchange and one identity check.
 The service reserves both identity calls against minute and daily limits before token issuance.
 Unused reserved calls remain spent after cancellation or rejection.
