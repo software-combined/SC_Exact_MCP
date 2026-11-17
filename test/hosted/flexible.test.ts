@@ -90,7 +90,7 @@ describe("reads with only a company", () => {
     const h = await setup();
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
-      // 23:30 UTC is already the next day in Amsterdam, the fixture's region; days count from the company's date.
+      // 23:30 UTC is already the next day in Amsterdam, the fixture's region. Days count in the region's time zone.
       vi.setSystemTime(new Date("2026-11-16T23:30:00Z"));
       await h.read("receivables", { division: 123456, customer: "Fictional", overdueDays: 30 });
     } finally { vi.useRealTimers(); }

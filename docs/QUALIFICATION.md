@@ -119,7 +119,7 @@ Wider staff release requires that proof and owner acceptance.
 | Two distinct personal permission sets | Pending. |
 | Claude use | Pending. |
 | ChatGPT use | Pending. |
-| Microsoft 365 Copilot use | One pilot user: sign-in, company discovery, customer search, receivables and token refresh passed. Invoice lookup was denied by Exact for that login. On 17/11/2026, after a full reset, sign-in and company discovery passed again. The test used a package that lists the eight tools and a registration bound to the App ID that the Teams admin center assigned. On 17/11/2026, with package 1.0.16 and service commit `a489633` deployed, these reads returned live results for the same pilot user: a customer list with only the company and a row limit; a customer search by city; and receivables by a partial customer name and by days overdue. Their values were not compared in Exact. An invoice list was denied by Exact for that login. Change tools and a second person remain pending. |
+| Microsoft 365 Copilot use | One pilot user: sign-in, company discovery, customer search, receivables and token refresh passed. Invoice lookup was denied by Exact for that login. On 17/11/2026, after a full reset, sign-in and company discovery passed again. The test used a package that lists the eight tools and a registration bound to the App ID that the Teams admin center assigned. On 17/11/2026, these reads returned live results for the same pilot user. Package 1.0.16 was loaded in Copilot, and service commit `a489633` was deployed. The reads were: a customer list with only the company and a row limit; a customer search by city; and receivables by a partial customer name and by days overdue. Their values were not compared in Exact. An invoice list was denied by Exact for that login. Change tools and a second person remain pending. |
 | Owner acceptance of the deployed revision | Pending; production target does not establish acceptance. |
 
 ## Source basis
@@ -144,11 +144,12 @@ Change bodies follow the same customer and sales invoice pages: a new invoice is
 
 The optional filters use `City`, `Email`, `VATNumber`, `InvoiceTo`, `InvoiceDate` and `Status`.
 These names come from the Exact documentation and the property list in `test/fixtures/exact-properties.json`.
-On 17/11/2026, live Exact accepted the `City` filter, a customer name lookup, the `DueDate` cut-off for days overdue and a customer list with no filter.
+On 17/11/2026, live Exact accepted the `City` filter, a customer name lookup, the `DueDate` cut-off for days overdue and a customer list with no filter and a row limit. The returned values were not compared in Exact.
 The other filters (`Email`, `VATNumber`, `InvoiceTo`, `InvoiceDate`, `Status`) are verified only against documentation and the local fake source.
 The newest-first invoice order is verified only against documentation and the local fake source.
+No other filter or tool input was tested live for the flexible tools.
 The invoice status labels (5 draft, 20 open, 50 processed) come from [the legacy reference](exact-endpoints.md) and are not verified live.
-Live results did not show whether `DueDate` is a company-local date. The days-overdue cut-off assumes it is.
+Live results did not show whether `DueDate` is a company-local date. For the European regions, the days-overdue cut-off assumes it is. The `com` region counts UTC days.
 
 Shared-table permissions also account for
 [DynamoDB encryption context](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/encryption.usagenotes.html).

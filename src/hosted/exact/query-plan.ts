@@ -24,8 +24,9 @@ function customerId(input: { customer?: string; customerId?: string }) {
   if (input.customer && !input.customerId) throw new Error("Resolve the customer name before planning the read.");
   return input.customerId;
 }
-// Exact due dates are company dates. The European regions count days in their own time zone; "com" has no
-// single zone, so it counts UTC days.
+// Assumption, not verified live: Exact due dates are company dates.
+// The European regions count days in their own time zone.
+// "com" has no single zone, so it counts UTC days.
 const zones: Record<Region, string> = { nl: "Europe/Amsterdam", be: "Europe/Brussels", de: "Europe/Berlin",
   fr: "Europe/Paris", es: "Europe/Madrid", uk: "Europe/London", com: "UTC" };
 function daysAgo(days: number, region: Region): string {
