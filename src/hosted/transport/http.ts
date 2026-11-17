@@ -13,6 +13,29 @@ export async function body(req: IncomingMessage, max = 32_000): Promise<string> 
   }
   return Buffer.concat(chunks).toString("utf8");
 }
+/**
+ * A log-safe rendering of a header value. Only letters, digits, and the characters . : , - and space are kept;
+ * any other character (including a line break) becomes "?". The result is capped at 80 characters.
+ */
+const headerLabel = (value: string | string[] | undefined) =>
+  value === undefined ? "missing" : String(value).replace(/[^a-z0-9.:,\- ]/gi, "?").slice(0, 80);
+
+/**
+ * Returns why a request is not for this service over HTTPS, or undefined when it is. A Host with the default port
+ * and a forwarded-protocol list from a proxy chain are accepted; the host name and HTTPS itself are still required.
+ */
+export function targetProblem(headers: IncomingMessage["headers"], url: URL, expected: URL): string | undefined {
+  if (url.origin !== expected.origin) return `target:${headerLabel(url.origin)}`;
+  const host = (headers.host ?? "").toLowerCase();
+  // The default port may be spelled out, but only when the service itself runs on the default port.
+  const defaultPort = expected.port ? undefined : expected.protocol === "https:" ? ":443" : ":80";
+  if (host !== expected.host && host !== `${expected.host}${defaultPort ?? ""}`) return `host:${headerLabel(headers.host)}`;
+  const forwardedProto = headers["x-forwarded-proto"];
+  const proto = String(forwardedProto ?? "").split(",")[0].trim().toLowerCase();
+  if (expected.protocol === "https:" && proto !== "https") return `proto:${headerLabel(forwardedProto)}`;
+  return undefined;
+}
+
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g,
   (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
 

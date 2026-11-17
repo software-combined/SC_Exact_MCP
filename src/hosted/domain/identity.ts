@@ -55,7 +55,7 @@ export interface CredentialCipher {
 
 export class ServiceError extends Error {
   constructor(public code: "denied" | "unavailable" | "invalid_input" | "conflict" | "reauth_required" | "limited",
-    message: string, public status = 503, /** Fixed diagnostic label for logs; never source data. */ readonly detail?: string) { super(message); }
+    message: string, public status = 503, /** Diagnostic label for logs: fixed text, optionally with a sanitised host or protocol header value; never source data. */ readonly detail?: string) { super(message); }
 }
 
 export function connectionKey(app: string, principal: string): string {
