@@ -31,6 +31,7 @@ The next call reads the same Exact page again and returns the rows after that re
 If that record is gone or its code changed, the call is refused with "The list changed while you were paging". Ask again from the start.
 The move to Exact's next page uses Exact's own continuation link. A list is not a snapshot.
 `overdueDays` counts days in the time zone of the Exact region, for example Amsterdam for `nl`. The `com` region counts UTC days.
+This assumes that Exact due dates are company dates. This assumption is not verified live.
 The service does not send Exact's `$top` for pages, because `$top` switches off Exact's paging.
 A required refresh can add one token exchange and one identity check.
 The service reserves both identity calls against minute and daily limits before token issuance.
