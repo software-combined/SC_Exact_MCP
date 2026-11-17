@@ -39,7 +39,7 @@ describe("canonical Exact contracts", () => {
       row: customerRow, resource: "crm/Accounts", filter: "IsSales eq true and substringof('Fictional',Name)",
       select: "ID,Code,Name", expected: { id: USER_B, code: "C001", name: "Fictional customer" } },
     { name: "customer code", query: { operation: "customer_search", input: { division: 123456, code: "C001" } },
-      row: customerRow, resource: "crm/Accounts", filter: "IsSales eq true and Code eq 'C001'",
+      row: customerRow, resource: "crm/Accounts", filter: "IsSales eq true and substringof('C001',Code)",
       select: "ID,Code,Name", expected: { id: USER_B, code: "C001", name: "Fictional customer" } },
     ...[{ invoiceId: INVOICE }, { invoiceNumber: 20260001 }].map((selector) => ({
       name: "invoice " + ("invoiceId" in selector ? "ID" : "number"),

@@ -16,6 +16,9 @@ Request logs name the route and, on failure, a fixed step label.
 Exact tokens may contain any printable character such as "!"; whitespace and control characters stay rejected.
 Credential failures are self-service: they affect only one person, who signs in again. Nobody waits for an operator reset.
 
+Flexible tools: reads need only the company. Customers, items, invoices and receivables accept optional filters and names instead of IDs.
+An unclear name stops the tool with the candidates. Invoice rows carry a status label, so the projection version is 2 and older cursors expire.
+
 The package is private.
 Inherited npm and MCP Registry publishing paths are removed.
 The public documentation now follows the SCG hosted mandate.

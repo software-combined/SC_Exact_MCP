@@ -16,22 +16,28 @@ const accountFields = (input: AccountInput) => Object.fromEntries(Object.entries
   AddressLine1: input.addressLine1, Postcode: input.postcode, City: input.city, Country: input.country,
 }).filter(([, value]) => value !== undefined));
 
+/** Names must already be resolved to IDs, so a change never targets a record the person did not choose. */
+const id = (value: string | undefined) => {
+  if (!value) throw new Error("Resolve names to IDs before building a change.");
+  return value.toLowerCase();
+};
+
 /** Maps a validated change to one fixed Exact request. Clients never choose the resource, method or field names. */
 export function changeRequest(change: Change, journal?: string): ChangeRequest {
   switch (change.operation) {
     case "create_customer": return { method: "POST", resource: "crm/Accounts",
       body: { ...accountFields(change.input), Status: "C", ...(change.input.code ? { Code: change.input.code } : {}) } };
-    case "update_customer": return { method: "PUT", resource: "crm/Accounts", key: change.input.customerId.toLowerCase(),
+    case "update_customer": return { method: "PUT", resource: "crm/Accounts", key: id(change.input.customerId),
       body: accountFields(change.input) };
     case "create_draft_sales_invoice": {
       const input = change.input;
       if (!journal) throw new Error("A sales journal is required.");
       return { method: "POST", resource: "salesinvoice/SalesInvoices", body: { Journal: journal,
-        OrderedBy: input.customerId.toLowerCase(),
+        OrderedBy: id(input.customerId),
         ...(input.invoiceDate ? { InvoiceDate: input.invoiceDate } : {}),
         ...(input.description ? { Description: input.description } : {}),
         ...(input.yourRef ? { YourRef: input.yourRef } : {}),
-        SalesInvoiceLines: input.lines.map((line) => ({ Item: line.itemId.toLowerCase(), Quantity: line.quantity,
+        SalesInvoiceLines: input.lines.map((line) => ({ Item: id(line.itemId), Quantity: line.quantity,
           ...(line.unitPrice === undefined ? {} : { UnitPrice: line.unitPrice }),
           ...(line.description ? { Description: line.description } : {}) })) } };
     }
