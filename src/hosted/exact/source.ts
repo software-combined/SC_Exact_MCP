@@ -158,7 +158,7 @@ export class ExactSource {
     return pickMatch(kind, text, division, page.rows, strict);
   }
   async read(query: Query, division: number, token: string, signal: AbortSignal, continuation?: string) {
-    const read = plan(query);
+    const read = plan(query, this.config.region);
     const base = this.url(division, read);
     const url = continuation ? this.continuation(base, continuation) : base;
     const raw = await this.get(url, token, signal);

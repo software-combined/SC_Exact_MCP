@@ -5,6 +5,9 @@ import type { Connections } from "./connections.js";
 import type { Budgets } from "./budgets.js";
 import type { Cursors } from "./cursors.js";
 
+/** Customer and item rows, the only lists with a limit, are sorted by Code and carry their Exact ID. */
+const rowKey = (row: unknown) => JSON.stringify([(row as { ID?: unknown }).ID, (row as { Code?: unknown }).Code]);
+
 export class Accounting {
   constructor(private connections: Connections, private budgets: Budgets, private cursors: Cursors) {}
   async read(operation: Operation, value: unknown, principal: Principal, signal: AbortSignal): Promise<Page> {
@@ -33,14 +36,20 @@ export class Accounting {
       }
       const planned = record ? { ...query, input: { ...query.input, customerId: record } } as Query : query;
       const result = await this.connections.source.read(planned, division, token, signal, continuation?.next);
-      // Exact's $top would switch off its paging, so a limit trims the normal page and the cursor keeps the position.
-      // ponytail: a record added or removed ahead of the offset shifts one row; store the last row ID when that matters.
+      // Exact's $top would switch off its paging, so a limit trims the normal page. Within that page, the cursor keeps
+      // the ID and Code (the sort key) of the last record returned. If that record is gone or moved, the call is refused.
       const limit = "limit" in query.input ? query.input.limit : undefined;
-      const start = continuation?.offset ?? 0;
+      const after = continuation?.after;
+      const at = after ? result.rows.findIndex((row) => rowKey(row) === after) : -1;
+      if (after && at < 0) {
+        throw new ServiceError("denied", "The list changed while you were paging. Ask again from the start.", 409);
+      }
+      const start = at + 1;
       const end = limit ? start + limit : result.rows.length;
       const rows = result.rows.slice(start, end).map((row) => normalize(operation, row));
-      const nextCursor = end < result.rows.length ? await this.cursors.create(principal, query, continuation?.next, continuation, end, record) :
-        result.next ? await this.cursors.create(principal, query, result.next, continuation, 0, record) : undefined;
+      const nextCursor = end < result.rows.length ?
+        await this.cursors.create(principal, query, continuation?.next, continuation, rowKey(result.rows[end - 1]), record) :
+        result.next ? await this.cursors.create(principal, query, result.next, continuation, undefined, record) : undefined;
       const page = outputs[operation].parse({ company: selectedCompany, rows,
         source: { system: "Exact Online", region: connection.region, readAt: new Date().toISOString(),
           projectionVersion, contentTrust: "untrusted source data" },
