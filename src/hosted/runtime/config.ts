@@ -8,16 +8,28 @@ const https = z.url().refine((value) => {
   const url = new URL(value);
   return url.protocol === "https:" && !url.hash && !url.username && !url.password;
 });
+const httpsOrigin = https.refine((value) => new URL(value).origin === value);
 const positive = z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().safe().positive());
 // AWS region code, such as eu-central-1. Also used by reconcile.ts.
 export const awsRegion = z.string().regex(/^[a-z]{2}(-[a-z]+)+-\d+$/);
-const envSchema = z.object({ SCG_ENVIRONMENT: z.literal("production"), AWS_REGION: awsRegion,
-  SCG_ORIGIN: https.refine((value) => new URL(value).origin === value),
-  SCG_STATE_TABLE: z.string().regex(/^[A-Za-z0-9_.-]{3,255}$/), SCG_KMS_KEY_ARN: z.string().min(20),
-  SCG_EXACT_APP_ID: z.string().min(1).max(200),
-  SCG_CONFIG_SECRET_ARN: z.string().min(20), PORT: positive.default(8080),
+const common = z.object({ SCG_ENVIRONMENT: z.literal("production"),
+  SCG_ORIGIN: httpsOrigin,
+  SCG_EXACT_APP_ID: z.string().min(1).max(200), PORT: positive.default(8080),
   SCG_APP_CALLS_PER_MINUTE: positive, SCG_DIVISION_CALLS_PER_MINUTE: positive,
-  SCG_APP_CALLS_PER_DAY: positive, SCG_DIVISION_CALLS_PER_DAY: positive })
+  SCG_APP_CALLS_PER_DAY: positive, SCG_DIVISION_CALLS_PER_DAY: positive });
+const aws = common.extend({ SCG_CLOUD: z.literal("aws"), AWS_REGION: awsRegion,
+  SCG_STATE_TABLE: z.string().regex(/^[A-Za-z0-9_.-]{3,255}$/), SCG_KMS_KEY_ARN: z.string().min(20),
+  SCG_CONFIG_SECRET_ARN: z.string().min(20) });
+// Azure Table Storage settings. Also used by reconcile.ts.
+export const azureTable = { AZURE_CLIENT_ID: z.guid(), SCG_TABLE_ENDPOINT: httpsOrigin,
+  SCG_TABLE_NAME: z.string().regex(/^[A-Za-z][A-Za-z0-9]{2,62}$/) };
+// Key Vault identifiers carry no query string, so the recorded key version is exactly the one that wrapped a token.
+const vaultPath = (pattern: RegExp) => https.refine((value) => !new URL(value).search && pattern.test(new URL(value).pathname));
+const azure = common.extend({ SCG_CLOUD: z.literal("azure"), ...azureTable,
+  // A versioned key ID, so each envelope records exactly which key version wrapped it.
+  SCG_KEY_ID: vaultPath(/^\/keys\/[A-Za-z0-9-]{1,127}\/[0-9a-f]{32}$/),
+  SCG_CONFIG_SECRET_URL: vaultPath(/^\/secrets\/[A-Za-z0-9-]{1,127}\/?$/) });
+const envSchema = z.discriminatedUnion("SCG_CLOUD", [aws, azure])
   .refine((env) => env.SCG_APP_CALLS_PER_MINUTE >= 8 && env.SCG_APP_CALLS_PER_DAY >= 8,
     "App budgets must permit the bounded public sign-in pool.");
 const client = z.object({ client_id: z.string().min(1).max(200), client_name: z.enum(["Claude", "ChatGPT", "Microsoft 365 Copilot"]),
@@ -33,7 +45,8 @@ const secretSchema = z.strictObject({ exact: z.strictObject({ appId: z.string().
     dp: z.string(), dq: z.string(), qi: z.string(), alg: z.literal("RS256"), use: z.literal("sig") })).min(1).max(3) }),
   cookieKeys: z.array(z.string().min(32).max(256)).min(2).max(3) });
 
-export function environment(values: NodeJS.ProcessEnv) { return envSchema.parse(values); }
+/** SCG_CLOUD selects the cloud adapters; it defaults to "aws". */
+export function environment(values: NodeJS.ProcessEnv) { return envSchema.parse({ ...values, SCG_CLOUD: values.SCG_CLOUD ?? "aws" }); }
 export function configuration(env: ReturnType<typeof environment>, secret: unknown): {
   broker: BrokerConfig; source: SourceConfig; limits: Limits } {
   const parsed = secretSchema.parse(secret);
