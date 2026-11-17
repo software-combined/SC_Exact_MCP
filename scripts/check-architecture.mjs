@@ -26,7 +26,7 @@ for (const file of files(resolve(root, "src/hosted")).filter((path) => path.ends
       errors.push(`${file}: application service imports an outer layer: ${specifier}`);
     }
     if (layer !== "transport" && specifier.startsWith("@modelcontextprotocol/")) errors.push(`${file}: MCP outside transport`);
-    if (layer !== "storage" && specifier.startsWith("@aws-sdk/") && !file.endsWith("/main.ts")) errors.push(`${file}: AWS outside adapter`);
+    if (layer !== "storage" && /^@(aws-sdk|azure)\//.test(specifier) && !file.endsWith("/main.ts")) errors.push(`${file}: cloud SDK outside adapter`);
   }
 }
 if (errors.length) { process.stderr.write(errors.join("\n") + "\n"); process.exit(1); }

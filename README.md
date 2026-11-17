@@ -27,7 +27,7 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | A staff member who wants to use it | [Staff guide](docs/USER-GUIDE.md) | About 5 minutes. Nothing to install. |
 | Asking whether it is safe | [Security questions](docs/FAQ.md) | About 10 minutes |
 | IT, connecting an AI assistant | [Hosting guide: connect an AI assistant](docs/HOSTING.md#register-three-ai-clients) | About 30 minutes per assistant |
-| IT at another company, running your own copy | [Deploy your own copy](docs/SELF-HOST.md) | About 2 hours |
+| IT at another company, running your own copy on AWS or Azure | [Deploy your own copy](docs/SELF-HOST.md) | About 2 hours |
 | IT, running or recovering the service | [Hosting guide](docs/HOSTING.md) and [operations guide](docs/OPERATIONS.md) | |
 | A developer | [Developers](#developers) below | |
 
@@ -86,7 +86,7 @@ npm run verify
 `npm run verify` checks architecture rules, types, tests, the build and dependencies.
 The tests use fictional data and local services. They never connect to a real Exact company.
 
-The container starts the hosted service. It needs the AWS resources and private configuration that the [hosting guide](docs/HOSTING.md) describes.
+The container starts the hosted service. It needs the cloud resources and private configuration that the [hosting guide](docs/HOSTING.md) (AWS) or the [self-host guide](docs/SELF-HOST.md) (AWS or Azure) describes.
 The [documentation index](docs/README.md) lists every guide.
 
 ## Legacy command line

@@ -1,7 +1,10 @@
 # Deploy your own copy
 
-This guide is for a company's IT team. It sets up your own copy of SCG Exact MCP in your own Amazon Web Services (AWS) account.
-Your Exact data then flows only between Exact, your AWS account and your AI assistant. Nothing passes through Software Combined.
+This guide is for a company's IT team. It sets up your own copy of SCG Exact MCP in your own Amazon Web Services (AWS) account
+or your own Microsoft Azure subscription.
+Your Exact data then flows only between Exact, your cloud account and your AI assistant. Nothing passes through Software Combined.
+
+Steps 1 to 5 below use AWS. If you use Azure, read [On Azure](#on-azure) first: it replaces the AWS parts.
 
 Allow about two hours the first time. Most of it is waiting for AWS.
 
@@ -144,3 +147,77 @@ If you upgrade from a read-only version to one with change tools, sign everyone 
 - A sign-in fails: the error page shows a reference. Search for it in the service's CloudWatch logs.
 
 [OPERATIONS.md](OPERATIONS.md) covers recovery, and [FAQ.md](FAQ.md) answers security questions.
+
+## On Azure
+
+Use this route if your company uses Microsoft Azure instead of AWS.
+Steps 1 to 3, 6 and 7 stay the same. Replace "What you need" and steps 4 and 5 with the parts below.
+
+### What you need on Azure
+
+- An Azure subscription. Any Azure region works.
+- Permission to create resources and role assignments in that subscription, for example the Owner role.
+- A host name for the service that is a sub-domain, such as `exact-mcp.example.com`.
+  You add two DNS records for it at your DNS provider during the deploy.
+- A Mac or Linux computer with the Azure command line (`az`), Node.js 22 or newer, and Git.
+  On Windows, use Windows Subsystem for Linux. You do not need Docker: Azure builds the container for you.
+- Sign in first with `az login`, as a person rather than a service principal.
+
+Running costs are your own Azure bill. The main items are two small containers in Azure Container Apps,
+a container registry, a key vault, a storage account and a log workspace.
+Use the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/) with your region before you start.
+
+### 4. Write your Azure settings
+
+Create `/secure/path/azure-settings.json`, outside the code folder:
+
+```json
+{
+  "resourceGroup": "exact-mcp",
+  "location": "australiaeast",
+  "hostname": "exact-mcp.example.com",
+  "exactAppId": "<your Exact app ID>",
+  "configFile": "/secure/path/exact-mcp-config.json"
+}
+```
+
+Use your own region name, such as `westeurope` or `uksouth`. `az account list-locations -o table` lists them.
+The resource group is created if it does not exist. An existing group must already be in the same region, and keeps its own tags. Optional extras:
+
+- `"subscription": "<name or ID>"` if you have more than one subscription.
+- `"budgets"` and `"tags"`, as in the AWS settings.
+- `"prefix"` to name the resources, 3 to 20 lowercase letters, digits and hyphens. The default is `exact-mcp`.
+
+### 5. Deploy on Azure
+
+```sh
+npm run deploy:azure -- --settings /secure/path/azure-settings.json
+```
+
+The command shows the Azure account you are signed in to. It creates the resource group, a managed identity,
+a key vault with an encryption key, a storage table, a container registry and a Container Apps environment.
+It stores your private configuration in the key vault without printing it. New permissions can take a few minutes to work, so it may wait here.
+It then builds the container in your registry and starts two copies of the service.
+
+The first time, it prints two DNS records: a `CNAME` for your host name and a `TXT` record for `asuid.<your-host>`.
+Add both at your DNS provider, then press Enter. Azure then issues a free certificate for your host name.
+The command ends with `The service is up at https://<your-host>/mcp`. To see the planned Azure changes first, add `--review`.
+
+How the Azure copy works:
+
+- Azure Container Apps handles HTTPS. It passes your host name and `X-Forwarded-Proto: https` to the service, which the service requires.
+- Two copies run. Shared sign-in state is in Azure Table Storage, so either copy can answer.
+- Exact tokens are encrypted with a new random key each time. That key is itself locked by a key in Azure Key Vault, which never leaves the vault. The private configuration is a Key Vault secret.
+- The service signs in to Azure with its managed identity, so it stores no Azure passwords or storage keys. (The template gives the log workspace key to Azure Container Apps for logging only.)
+- Each person who runs the deploy gets permission to store the private configuration in Key Vault. Remove that role from people who no longer deploy.
+- Expired one-time records stay in the table until they are reused. They are small and hold no Exact tokens; Exact tokens are only in the encrypted connection records.
+
+To update, run the [Updating](#updating) commands with `npm run deploy:azure` and your Azure settings.
+The DNS records and certificate stay in place, so the command does not ask for them again.
+
+### If something goes wrong on Azure
+
+- The deploy command stops with a message: fix the cause, then run it again.
+- You deleted a copy and deploy again with the same resource group: Azure keeps the deleted Key Vault name for up to 90 days. Recover it with `az keyvault recover`, or choose another `prefix`.
+- The service is not healthy: in the Azure portal, open the container app, then **Revisions** and **Log stream**.
+- A sign-in fails: search for the error reference in the log workspace (`<prefix>-logs`).

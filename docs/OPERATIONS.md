@@ -67,7 +67,7 @@ The normal access-token safety margin is 30 seconds.
 Early source expiry can require waiting or reauthentication.
 
 Credential exchange and identity validation have an independent 15-second bound.
-Each Amazon Web Services (AWS) call has an independent 3-second limit through credential resolution and response processing.
+Each cloud storage, key or secret call (AWS or Azure) has an independent 3-second limit through credential resolution and response processing.
 It runs once. A timeout stops its unfinished request. If Exact already rotated the token, that person signs in again.
 Request cancellation does not interrupt started credential persistence.
 Shutdown closes incoming HTTP connections to cancel work that has not issued credentials.
@@ -107,10 +107,13 @@ No operator action is needed. If Exact rotated a token that was not saved, Exact
 
 To make every person sign in again, for example after a suspected compromise of the service:
 
-1. Confirm the app, region, environment and AWS operator identity.
-2. Run `node dist/hosted/reconcile.js` as a one-off task copied from the service task definition.
-   - The copied task supplies the task role, `AWS_REGION`, `SCG_STATE_TABLE` and `SCG_EXACT_APP_ID`.
-   - Add `SCG_EXACT_REGION` and `SCG_CONFIRM_REAUTH_ALL=yes`.
+1. Confirm the app, region, environment and cloud operator identity.
+2. Run `node dist/hosted/reconcile.js` with `SCG_EXACT_REGION=<region>` and `SCG_CONFIRM_REAUTH_ALL=yes`.
+   - On AWS, run it from a checkout of the deployed commit (`npm ci && npm run build`), signed in as the operator.
+     Also set `AWS_REGION`, `SCG_STATE_TABLE` (the service stack's `State` table) and `SCG_EXACT_APP_ID`.
+     Do not use a copied ECS task: the image's fixed entry point ignores a command override and starts another server.
+   - On Azure, open a shell in one replica: `az containerapp exec --resource-group <group> --name <prefix> --command sh`.
+     The replica already has the Azure settings and identity. Run the command there.
 3. Expect the `all_connections_revoked` event. The command refuses while an exchange is running; retry after a minute.
 4. Ask people to sign in again.
 
