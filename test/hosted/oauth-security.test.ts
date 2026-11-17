@@ -144,6 +144,23 @@ describe("OAuth isolation and revocation", () => {
       detail: "connect:identity:reauth_required" }));
   });
 
+  it("opens Exact from a page, not a form redirect, so Exact's own login redirects are not blocked", async () => {
+    const h = await harness(); active.push(h);
+    const browser = new Browser(h.origin);
+    const page = await browser.follow(await browser.request("/auth?client_id=claude&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fclaude%2Fcallback&scope=exact.read&code_challenge=1111111111111111111111111111111111111111111&code_challenge_method=S256"));
+    const opening = await browser.submit(page, true);
+    expect(opening.status).toBe(200);
+    expect(opening.headers.get("location")).toBeNull();
+    expect(opening.headers.get("Set-Cookie")).toMatch(/^scg-exact=[A-Za-z0-9_-]{43}; HttpOnly; SameSite=Lax; Path=\/exact\/callback; Max-Age=180$/);
+    expect(opening.headers.get("Content-Security-Policy")).toContain("form-action 'self' ;");
+    const markup = await opening.text();
+    const refresh = /http-equiv="refresh" content="0;url=([^"]+)"/.exec(markup)![1];
+    const target = new URL(refresh.replaceAll("&amp;", "&"));
+    expect(`${target.origin}${target.pathname}`).toBe(`${h.exactOrigin}/api/oauth2/auth`);
+    expect(target.searchParams.get("state")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(markup).toContain(`<a href="${refresh}">open Exact Online</a>`);
+  });
+
   it("binds Exact state to the initiating browser and consumes it exactly once", async () => {
     const h = await harness(); active.push(h);
     const browser = new Browser(h.origin);

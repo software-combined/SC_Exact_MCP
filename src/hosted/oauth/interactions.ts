@@ -74,9 +74,12 @@ export class Interactions {
       const state = random(); const nonce = random();
       await this.store.write(`flow:${state}`, { payload: { uid, nonce: digest(nonce) } }, undefined, Date.now() + 180_000);
       const secure = this.broker.config.origin.startsWith("https:") ? "; Secure" : "";
-      res.writeHead(303, { Location: this.broker.connections.source.authorizeUrl(state),
-        "Set-Cookie": `scg-exact=${nonce}; HttpOnly; SameSite=Lax; Path=/exact/callback; Max-Age=180${secure}` });
-      return res.end();
+      const target = this.broker.connections.source.authorizeUrl(state);
+      res.setHeader("Set-Cookie", `scg-exact=${nonce}; HttpOnly; SameSite=Lax; Path=/exact/callback; Max-Age=180${secure}`);
+      // A form's redirects must all stay within its form-action origins, and Exact can send a signed-out browser on
+      // to a login page on another host, which the browser then blocks without a message. Opening Exact from a page
+      // is a new navigation, so that rule does not apply to it or to Exact's own redirects.
+      return html(res, "Opening Exact Online", `<p>Opening Exact Online.</p><p>If nothing happens, <a href="${escapeHtml(target)}">open Exact Online</a>.</p>`, [], 200, target);
     }
     if (!accountId) throw new ServiceError("denied", "Connect a personal Exact account first.", 400);
     const connection = await this.broker.connections.active(accountId);

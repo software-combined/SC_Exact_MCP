@@ -20,6 +20,8 @@ Flexible tools: reads need only the company. Customers, items, invoices and rece
 An unclear name stops the tool with the candidates. Invoice rows carry a status label, and a limited list continues after the last record shown, so the projection version is 3 and older cursors expire.
 `overdueDays` counts days in the Exact region's time zone.
 
+"Continue to Exact" now shows an **Opening Exact Online** page that opens Exact. Before, the browser could block Exact's redirect to its login page on the first try.
+
 The package is private.
 Inherited npm and MCP Registry publishing paths are removed.
 The public documentation now follows the SCG hosted mandate.
