@@ -110,6 +110,7 @@ No operator action is needed. If Exact rotated a token that was not saved, Exact
 To make every person sign in again, for example after a suspected compromise of the service:
 
 1. Confirm the app, region, environment and cloud operator identity.
+   Confirm that the uploaded Copilot package lists the tools. If it does not, Copilot users get no **Sign in** card after the reset ([hosting guide](HOSTING.md#microsoft-365-copilot-declarative-agent-route)).
 2. Run `node dist/hosted/reconcile.js` with `SCG_EXACT_REGION=<region>` and `SCG_CONFIRM_REAUTH_ALL=yes`.
    - On AWS, run it from a checkout of the deployed commit (`npm ci && npm run build`), signed in as the operator.
      Also set `AWS_REGION`, `SCG_STATE_TABLE` (the service stack's `State` table) and `SCG_EXACT_APP_ID`.

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { configuration, environment } from "../src/hosted/runtime/config.js";
 // @ts-expect-error Plain ESM scripts without type declarations.
-import { copilotPackage, zip } from "../scripts/build-copilot-package.mjs";
+import { copilotPackage, serviceTools, zip } from "../scripts/build-copilot-package.mjs";
 // @ts-expect-error Plain ESM scripts without type declarations.
 import { checkConfig, checkConfigChange, checkOwner, readSettings, serviceParameters } from "../scripts/deploy.mjs";
 
@@ -50,19 +50,28 @@ describe("self-host kit", () => {
     expect(inside.status).not.toBe(0);
   });
 
-  it("builds a valid Copilot package with live tool discovery and the deployment's own registration", () => {
+  it("builds a Copilot package that lists the service's own tools, so Copilot can ask people to sign in", async () => {
     const appId = "11111111-2222-4333-8444-555555555555";
-    const files = unzip(zip(copilotPackage({ host: "exact-mcp.example.com", appId, registrationId: "fictional-registration" })));
+    const tools = await serviceTools(() => import("../src/hosted/transport/mcp.js"));
+    const names = tools.map((tool) => tool.name);
+    expect(names).toEqual(expect.arrayContaining(["company_discovery", "create_draft_sales_invoice"]));
+    const files = unzip(zip(copilotPackage({ host: "exact-mcp.example.com", appId, registrationId: "fictional-registration", tools })));
     expect(Object.keys(files).sort()).toEqual(["color.png", "declarativeAgent.json", "manifest.json", "outline.png", "plugin.json"]);
     const manifest = JSON.parse(files["manifest.json"].toString()); const plugin = JSON.parse(files["plugin.json"].toString());
     expect(manifest).toMatchObject({ manifestVersion: "1.29", id: appId, validDomains: ["exact-mcp.example.com"] });
-    expect(plugin.functions).toEqual([]);
-    expect(plugin.runtimes[0]).toEqual({ type: "RemoteMCPServer", auth: { type: "OAuthPluginVault", reference_id: "fictional-registration" },
-      run_for_functions: ["*"], spec: { url: "https://exact-mcp.example.com/mcp" } });
+    expect(plugin.functions.map((fn: { name: string }) => fn.name)).toEqual(names);
+    expect(plugin.runtimes[0]).toMatchObject({ type: "RemoteMCPServer", auth: { type: "OAuthPluginVault", reference_id: "fictional-registration" },
+      run_for_functions: names, spec: { url: "https://exact-mcp.example.com/mcp" } });
+    expect(plugin.runtimes[0].spec.mcp_tool_description.tools).toEqual(tools.map(({ name, description, inputSchema, annotations }) =>
+      ({ name, description, inputSchema, annotations })));
+    const packaged = Object.fromEntries(plugin.runtimes[0].spec.mcp_tool_description.tools.map((tool: { name: string; annotations: { readOnlyHint: boolean } }) =>
+      [tool.name, tool.annotations.readOnlyHint]));
+    expect(packaged).toMatchObject({ company_discovery: true, create_customer: false, update_customer: false, create_draft_sales_invoice: false });
     expect(JSON.parse(files["declarativeAgent.json"].toString()).instructions).not.toMatch(/read-only/i);
-    expect(() => copilotPackage({ host: "https://bad", appId, registrationId: "r" })).toThrow(/bare host/);
-    expect(() => copilotPackage({ appId, registrationId: "r" })).toThrow(/bare host/);
-    expect(() => copilotPackage({ host: "a.example", appId: "nope", registrationId: "r" })).toThrow(/GUID/);
+    expect(() => copilotPackage({ host: "https://bad", appId, registrationId: "r", tools })).toThrow(/bare host/);
+    expect(() => copilotPackage({ appId, registrationId: "r", tools })).toThrow(/bare host/);
+    expect(() => copilotPackage({ host: "a.example", appId: "nope", registrationId: "r", tools })).toThrow(/GUID/);
+    expect(() => copilotPackage({ host: "a.example", appId, registrationId: "r", tools: [] })).toThrow(/tool list is empty/);
   });
 
   it("maps every required service template parameter from the foundation outputs and settings", () => {

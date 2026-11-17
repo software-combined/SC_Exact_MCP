@@ -1,6 +1,6 @@
 # Qualification and live acceptance
 
-Owner: Software Combined IT. Source review date: 16/11/2026.
+Owner: Software Combined IT. Source review date: 17/11/2026.
 Status: deployed to production; Microsoft 365 Copilot pilot passing for one person; second-person check, other AI clients and staff acceptance remain pending.
 
 ## Local evidence
@@ -118,7 +118,7 @@ Wider staff release requires that proof and owner acceptance.
 | Two distinct personal permission sets | Pending. |
 | Claude use | Pending. |
 | ChatGPT use | Pending. |
-| Microsoft 365 Copilot use | One pilot user: sign-in, company discovery, customer search, receivables and token refresh passed. Invoice lookup was denied by Exact for that login. Second-person check pending. |
+| Microsoft 365 Copilot use | One pilot user: sign-in, company discovery, customer search, receivables and token refresh passed. Invoice lookup was denied by Exact for that login. On 17/11/2026, after a full reset, sign-in and company discovery passed again with a package that lists the eight tools and a registration bound to the App ID that the Teams admin center assigned. Change tools and a second person remain pending. |
 | Owner acceptance of the deployed revision | Pending; production target does not establish acceptance. |
 
 ## Source basis
