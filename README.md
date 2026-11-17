@@ -7,7 +7,7 @@
 
 <h1 align="center">SCG Exact MCP</h1>
 
-<p align="center">Ask Exact Online questions from your AI assistant, with your own Exact sign-in. Read-only.</p>
+<p align="center">Ask Exact Online questions from your AI assistant, with your own Exact sign-in.</p>
 
 This service connects AI (artificial intelligence) assistants, such as Microsoft 365 Copilot, Claude and ChatGPT, to Exact Online.
 You ask a question in plain words. For example: "Which invoices are overdue for this customer?"
@@ -15,8 +15,8 @@ The assistant looks up the answer in Exact through this service.
 
 Two rules never change:
 
-- You see only what your own Exact account can see. There is no shared login.
-- The service can only read. It cannot create, change, send, book or delete anything in Exact.
+- You see and change only what your own Exact account allows. There is no shared login.
+- The service makes only three kinds of change: create a customer, update a customer's details, and create a draft sales invoice. It never deletes, books, sends or pays.
 
 Software Combined Group (SCG) IT runs the service. The connection uses the Model Context Protocol (MCP). MCP is an open standard for linking AI assistants to other systems.
 
@@ -39,6 +39,13 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | Customers | "Find the customer named Fictional Trading in company 123456." |
 | Sales invoices | "Show sales invoice 20260001 in company 123456." |
 | Receivables (money customers still owe) | "Which receivables in company 123456 are overdue?" |
+| Sales items | "Find the item for consulting hours in company 123456." |
+
+| You can change | Example request |
+| --- | --- |
+| Create a customer | "Create a customer named Fictional Trading in company 123456." |
+| Update a customer | "Change the phone number of customer C001 in company 123456." |
+| Draft a sales invoice | "Draft an invoice for Fictional Trading in company 123456: 2 consulting hours." |
 
 Each answer names the company, the currency and the time of the lookup.
 Long lists come back one page at a time. A page is not a complete total. Receivables are current balances, not past ones.

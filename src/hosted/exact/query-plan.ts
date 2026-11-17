@@ -1,7 +1,8 @@
 import type { Query } from "../domain/contracts.js";
 
 export interface ReadPlan {
-  resource: "system/Divisions" | "crm/Accounts" | "salesinvoice/SalesInvoices" | "read/financial/ReceivablesList";
+  resource: "system/Divisions" | "crm/Accounts" | "salesinvoice/SalesInvoices" | "read/financial/ReceivablesList" |
+    "logistics/Items" | "financial/Journals";
   select: string;
   filter?: string;
   orderBy?: string;
@@ -19,6 +20,9 @@ export function plan(query: Query): ReadPlan {
       select: "InvoiceID,InvoiceNumber,InvoiceToName,InvoiceDate,DueDate,Currency,AmountFC,Status",
       ...(query.input.invoiceId ? { key: query.input.invoiceId.toLowerCase() } : {
         filter: `InvoiceNumber eq ${query.input.invoiceNumber}`, orderBy: "InvoiceID" }) };
+    case "item_search": return { resource: "logistics/Items", select: "ID,Code,Description,StandardSalesPrice",
+      orderBy: "Code,ID", filter: `IsSalesItem eq true and ${query.input.code ? `Code eq ${literal(query.input.code)}` :
+        `substringof(${literal(query.input.description!)},Description)`}` };
     case "receivables": {
       const filters = [];
       if (query.input.overdueBefore) filters.push(`DueDate lt datetime'${query.input.overdueBefore}T00:00:00'`);

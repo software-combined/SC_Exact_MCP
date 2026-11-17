@@ -63,8 +63,8 @@ You do this once for each AI assistant.
 1. On the **Connect Exact Online** page, select **Continue to Exact**.
 2. Sign in to Exact with your own account. Your password goes only to Exact.
 3. If Exact asks you to grant access, approve it.
-4. On the **Allow read-only access** page, check the name after "Signed in to Exact as".
-5. If it is your name, select **Allow read-only access**.
+4. On the **Allow access** page, check the name after "Signed in to Exact as".
+5. If it is your name, select **Allow access**.
 
 If it is not your name, close the window and contact Software Combined IT. Never approve another person's Exact account.
 
@@ -85,6 +85,22 @@ Check three things in every answer: the company, the currency, and the time of t
 - Long lists come one page at a time. Ask for "the next page" to see more.
 - A page is not a complete total. Receivables are what customers owe now, not on a past date.
 - The assistant can make mistakes. For important decisions, check the figures in Exact.
+
+## Make changes
+
+The assistant can also create a customer, change a customer's details, and create a draft sales invoice:
+
+> Create a customer named Fictional Trading in company 123456, email info@example.com.
+>
+> Draft a sales invoice in company 123456 for Fictional Trading: 2 hours of consulting.
+
+Depending on how your assistant's tool permissions are set, it may ask you to confirm a change first.
+After a change, the assistant names the company and the record it changed. Check it in Exact.
+If a change fails or you get no clear answer, it may still have been made. Check Exact before you ask again.
+
+You can change only what your own Exact account is allowed to change.
+A draft sales invoice is not booked or sent. Check it and process it in Exact yourself.
+The assistant cannot delete records, book entries, send invoices or make payments.
 
 ## If something goes wrong
 

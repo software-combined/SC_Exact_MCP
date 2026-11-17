@@ -65,7 +65,7 @@ describe("official MCP SDK over real local HTTP", () => {
       await client.close(); vi.clearAllTimers(); vi.useRealTimers();
     }
   });
-  it("discovers exactly four tools and reads typed Exact data with a personal token", async () => {
+  it("discovers all tools and reads typed Exact data with a personal token", async () => {
     const h = await harness(); active.push(h);
     const { token, response } = await exchange(h, await authorization(h));
     expect(response.status).toBe(200);
@@ -73,7 +73,8 @@ describe("official MCP SDK over real local HTTP", () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${h.origin}/mcp`), {
       requestInit: { headers: { Authorization: `Bearer ${token.access_token}` } } }));
     const tools = await client.listTools();
-    expect(tools.tools.map((v) => v.name).sort()).toEqual(["company_discovery", "customer_search", "invoice_lookup", "receivables"]);
+    expect(tools.tools.map((v) => v.name).sort()).toEqual(["company_discovery", "create_customer", "create_draft_sales_invoice",
+      "customer_search", "invoice_lookup", "item_search", "receivables", "update_customer"]);
     for (const [name, args] of [["company_discovery", {}], ["customer_search", { division: 123456, name: "Fictional" }],
       ["invoice_lookup", { division: 123456, invoiceId: INVOICE }], ["receivables", { division: 123456 }]] as const) {
       const result = await client.callTool({ name, arguments: args });

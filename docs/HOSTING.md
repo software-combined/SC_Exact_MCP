@@ -82,7 +82,7 @@ This customer registration serves that subscription.
 Cross-customer use requires a separately qualified developer registration.
 
 1. Name the dedicated app **SCG Exact MCP**.
-2. Use the description **Read-only access to Exact Online through AI apps.**
+2. Use the description **Access to Exact Online through AI apps.**
 3. Set the callback to `https://<approved-host>/exact/callback`.
 4. Confirm the app ID, Exact region, and approved company consent.
 5. Keep the app secret in private runtime configuration.
@@ -90,9 +90,8 @@ Cross-customer use requires a separately qualified developer registration.
 Exact requires the callback URI to match exactly.
 The service validates identity through the fixed `current/Me` endpoint.
 The immutable user ID and region define the personal subject.
-The current registration form does not prove that Exact enforces a read-only scope.
-Review available source scopes and permissions at registration and consent.
-The hosted tool contract permits business GET requests only.
+The app needs read access, plus write access to customers and sales invoices for the change tools.
+The service itself limits changes to its three fixed change tools.
 Source access still depends on the Exact user and app permissions.
 
 ## Register three AI clients
@@ -100,7 +99,7 @@ Source access still depends on the Exact user and app permissions.
 Each AI assistant connects to the service as an OAuth client. OAuth is an open standard for granting access without sharing passwords.
 Create one static SCG OAuth registration for each target client.
 Use authorization code with S256 proof key for code exchange (PKCE).
-The only resource scope is `exact.read`.
+The only resource scope is `exact.read`. The name is kept so existing registrations keep working; it covers every tool.
 The advertised `openid` identity scope returns the canonical subject without profile or email claims.
 Public dynamic client registration is disabled.
 
@@ -147,8 +146,8 @@ Then build the app package. It has five files:
 | `color.png`, `outline.png` | 192 by 192 colour icon and 32 by 32 white outline icon |
 
 In `plugin.json`, set `spec.url` to the MCP URL, set `run_for_functions` to `["*"]` and `functions` to `[]`, and leave out `mcp_tool_description`.
-Copilot then reads the tools, their descriptions and their read-only markers live from the service's `tools/list` response.
-Keep the agent instructions general: name no tools and make no read-only promise, so new tools need no package change.
+Copilot then reads the tools, their descriptions and their read-only or change markers live from the service's `tools/list` response.
+Keep the agent instructions general and name no tools, so new tools need no package change.
 Validate each file against the schema URL in its `$schema` field before upload.
 
 Upload the zip in the [Teams admin center](https://admin.teams.microsoft.com/policies/manage-apps) with **Upload new app**.

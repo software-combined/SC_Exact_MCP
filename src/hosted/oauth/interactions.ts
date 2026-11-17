@@ -58,9 +58,9 @@ export class Interactions {
       const connection = await this.broker.connections.active(accountId);
       if (candidate && candidate.value.generation !== connection.generation) throw new ServiceError("denied", "The connection changed. Start sign-in again.", 400);
       const prompt = details.prompt.name === "login" ? "confirm" : "consent";
-      return this.form(res, uid, prompt, "Allow read-only access",
-        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, sales invoices and receivables? This service only reads; it cannot change anything in Exact.</p><p class="note">Not you? Close this window and contact your IT team.</p>`,
-        "Allow read-only access", origins);
+      return this.form(res, uid, prompt, "Allow access",
+        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read companies, customers, items, sales invoices and receivables, and to create and update customers and create draft sales invoices, as far as your Exact account allows?</p><p class="note">Not you? Close this window and contact your IT team.</p>`,
+        "Allow access", origins);
     }
     if (req.method !== "POST" || !action || !["connect", "confirm", "consent"].includes(action)) {
       throw new ServiceError("invalid_input", "Unsupported interaction action.", 400);

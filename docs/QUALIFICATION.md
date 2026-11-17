@@ -10,8 +10,8 @@ TypeScript checks, local tests, build, and production dependency audit.
 Run `npm run verify:infra` for all CloudFormation templates and their guards.
 
 The tests use the actual Model Context Protocol (MCP) SDK and `oidc-provider` over local HTTP.
-A fictional Exact server handles consent, code exchange, identity, and fixed reads.
-Tests cover all four operations and the actual legacy ESM stdio entry point.
+A fictional Exact server handles consent, code exchange, identity, fixed reads and fixed changes.
+Tests cover all read and change operations and the actual legacy ESM stdio entry point.
 They also cover changed permissions, malformed fields, scoped cursors, replay,
 client isolation, shared state, cancellation, refresh races, and uncertain persistence.
 
@@ -34,7 +34,7 @@ The hosted path coexists with the legacy CLI because existing local callers need
 It never imports the legacy broad catalogue.
 
 The service is deterministic and has no model, paid model call, or autonomous loop.
-Compatibility tier: T1 for its business read capability.
+Compatibility tier: T1 for business reads; the three change tools are bounded writes with the controls below.
 Applicable tool profiles are R, external untrusted content, and L, bounded result size.
 Credential rotation also has harmful replay and interruption risks.
 Shared conditional exchange state handles those internal maintenance effects.
@@ -44,10 +44,11 @@ safe errors, bounded pages, shared budgets, generation checks, metadata logs, an
 The named hosted tests verify their local enforcement.
 The [operations guide](OPERATIONS.md) owns numeric call, time, payload, and concurrency limits.
 
-Business write controls are inapplicable because no business write route exists.
-Reassess them before adding any create, update, send, book, or delete operation.
-Consequential approval controls are inapplicable to the four read tools.
-Reassess them before an external effect is added.
+Three business write tools exist: create customer, update customer, and create an unprocessed sales invoice.
+Their controls are fixed resources and fields, non-read-only tool markers for client permission settings,
+Exact's own permissions, and no automatic retry.
+Local tests cover the exact requests sent, Exact refusals, and an unknown outcome.
+No send, book, pay, or delete operation exists. Reassess before adding one.
 Delegated-agent and broad-autonomy controls are inapplicable because the service contains neither capability.
 Reassess them before introducing a model or dynamic orchestration.
 Paid-operation allowance is zero because no paid AI (artificial intelligence), enrichment, or reveal call exists.
@@ -74,7 +75,7 @@ Never record financial rows, source tokens, authorization codes, or raw error pa
 
 1. Verify the AWS target, operator identity, region, and approved production scope.
 2. Verify the deployed revision and immutable image digest.
-3. Read back HTTPS health, issuer metadata, resource metadata, and the four tools.
+3. Read back HTTPS health, issuer metadata, resource metadata, and the eight tools.
 4. Confirm S256, exact callbacks, fixed audience, and disabled public registration.
 5. Sign in with the approved first test user through the dedicated MCP app.
 6. Confirm the displayed Exact user before client consent.
@@ -134,7 +135,11 @@ Fixed projections follow the official resources for
 [identity](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SystemSystemMe),
 [customers](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=CRMAccounts),
 [sales invoices](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SalesInvoiceSalesInvoices),
-and [receivables](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=ReadFinancialReceivablesList).
+[receivables](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=ReadFinancialReceivablesList),
+[sales items](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=LogisticsItems) (`IsSalesItem`, `StandardSalesPrice`),
+[journals](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=FinancialJournals) (type 20 is sales; `IsBlocked`),
+and [sales invoice lines](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SalesInvoiceSalesInvoiceLines).
+Change bodies follow the same customer and sales invoice pages: a new invoice is Open (not processed) until printed or processed in Exact.
 
 Shared-table permissions also account for
 [DynamoDB encryption context](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/encryption.usagenotes.html).

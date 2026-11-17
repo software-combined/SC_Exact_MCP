@@ -134,6 +134,7 @@ The service replaces its containers one at a time. Copilot reads the tools from 
 Build a new package only when you change its name, icons, starters or instructions, or your registration ID.
 Give it a higher version each time, such as `--version 1.0.1`, then upload it in the Teams admin center.
 Never move back to a version older than the one you run; read [rollback and retained state](OPERATIONS.md#rollback-and-retained-state).
+If you upgrade from a read-only version to one with change tools, sign everyone in again once ([revoking all connections](OPERATIONS.md#abandoned-exchanges-and-revoking-all-connections)). Then everyone approves under the new wording, which includes changes.
 
 ## If something goes wrong
 

@@ -31,9 +31,13 @@ Each request returns a limited page and says whether more results are available.
 
 ## Can it change my accounts?
 
-The service is designed to read business records only. It cannot create, change, send, book or delete them.
+It can make three kinds of change: create a customer, change a customer's details, and create a draft sales invoice.
+It cannot delete records, book entries, send invoices or make payments. The service enforces this list; no other change is possible through it.
 
-The service enforces this restriction. Exact may grant the app and your account broader rights. Exact's own read-only restriction is unconfirmed.
+Exact checks that your own account may make each change. Whether your AI assistant asks before a change depends on its tool-permission settings, as for any connected tool.
+The service sends each change once and never retries it on its own. If the connection drops during a change, you may get no answer at all. Check Exact before you ask again.
+
+A draft sales invoice is not booked or sent. A person checks and processes it in Exact.
 
 ## Who can see my information?
 

@@ -1,13 +1,14 @@
 # Operations
 
 Owner: Software Combined IT. Scope: the dedicated SCG Exact MCP app.
-The service cannot change business records.
+The service can create customers, update customer details and create unprocessed sales invoices, nothing else.
 Credential maintenance and internal state still require careful recovery.
 
 ## Normal operation
 
 Each request has a 25-second deadline.
 Each Exact call has a 15-second timeout.
+A change is sent only within the first 7 seconds of its request, which leaves room for Exact's answer before the deadline. Later, it is refused and nothing is changed. If the answer is still lost, the person is told the result is unknown.
 One shared app slot keeps REST requests sequential across people and replicas.
 The slot stays in use until the response body finishes or the client request is cancelled.
 A 30-second lease bounds recovery after a process crash.

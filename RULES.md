@@ -2,8 +2,12 @@
 
 Owner: Software Combined IT. Status: source implementation; production deployment requires current verification.
 
-Hosted tools discover companies, search customers, look up sales invoices, and
-read receivables. They never mutate business records. Personal Exact consent and
+Hosted tools discover companies, search customers and sales items, look up sales
+invoices, and read receivables. Three change tools create a customer, update
+customer details, and create an unprocessed sales invoice. No tool deletes,
+books, sends, or pays. Exact's own permission decides each change; each AI
+client's tool-permission settings decide whether it asks first. A change request
+is sent once and never retried. Personal Exact consent and
 current source permissions are the authority for every read. Pilot access follows
 approved source consent; the service never invents a tenant entitlement.
 Other integrations' app credentials and
@@ -16,7 +20,8 @@ Email addresses, AI client IDs, tool arguments, and browser claims cannot select
 another person's connection. Each AI client has a separate OAuth grant and
 audience-bound SCG access token. Source tokens stay encrypted on the server.
 
-Only `exact.read` resource access is granted. The optional `openid` identity
+The only resource scope is `exact.read`; its name is kept so existing client
+registrations keep working. It covers every tool. The optional `openid` identity
 scope returns the canonical subject without profile or email claims.
 Use authorization code with S256 proof key for code
 exchange (PKCE), exact registered callback URLs, and three static registrations.
