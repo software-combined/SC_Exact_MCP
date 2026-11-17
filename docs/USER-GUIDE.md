@@ -61,7 +61,7 @@ Menu names can differ slightly between workspaces. Ask IT if you cannot find the
 You do this once for each AI assistant.
 
 1. On the **Connect Exact Online** page, select **Continue to Exact** once.
-   If the page does not change after 5 seconds, close the window. Ask your question again in your AI assistant.
+   An **Opening Exact Online** page opens Exact. If nothing happens, select **open Exact Online** on that page.
 2. Sign in to Exact with your own account. Your password goes only to Exact.
 3. If Exact asks you to grant access, approve it.
 4. On the **Allow access** page, check the name after "Signed in to Exact as".
@@ -122,7 +122,7 @@ Every error page shows a **Reference**. Send that reference to IT. Do not send s
 | --- | --- |
 | You cannot find SCG Exact | Ask IT to make it available to you. |
 | "Sign-in could not finish" | Close the window and start again from your AI assistant. If it fails again, stop and send the reference to IT. |
-| **Continue to Exact** does nothing | Close the window, ask your question again, and select **Continue to Exact** once. |
+| **Opening Exact Online** stays on screen | Select **open Exact Online** on that page. If that does not work, close the window and ask your question again. |
 | The assistant says the Exact tools are unavailable | Start a new chat with SCG Exact. If it still says so, tell IT. |
 | The assistant asks you to sign in again | Sign in again. Your saved connection expired or was reset. If IT reset all connections, everyone signs in again. |
 | Exact denies access to a company | Your Exact account cannot open that company. Ask your Exact administrator. |
