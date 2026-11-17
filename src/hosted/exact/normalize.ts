@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { companySchema, customerSchema, invoiceSchema, receivableSchema, type Operation } from "../domain/contracts.js";
+import { companySchema, customerSchema, invoiceSchema, itemSchema, receivableSchema, type Operation } from "../domain/contracts.js";
 import { ServiceError } from "../domain/identity.js";
 
 function sourceDate(value: unknown): string | null {
@@ -37,6 +37,8 @@ export function normalize(operation: Operation, value: unknown) {
       case "invoice_lookup": return invoiceSchema.parse({ id: r.InvoiceID, invoiceNumber: r.InvoiceNumber,
         customer: r.InvoiceToName, invoiceDate: sourceDate(r.InvoiceDate), dueDate: sourceDate(r.DueDate),
         currency: r.Currency, amount: r.AmountFC, status: r.Status });
+      case "item_search": return itemSchema.parse({ id: r.ID, code: r.Code, description: r.Description,
+        standardSalesPrice: r.StandardSalesPrice ?? null });
       case "receivables": {
         const hid = z.union([z.number().int().safe().nonnegative(), z.string().regex(/^\d+$/)]).parse(r.HID);
         return receivableSchema.parse({ id: String(hid), customerId: r.AccountId, customerCode: r.AccountCode,

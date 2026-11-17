@@ -5,13 +5,14 @@ import { ServiceError, type StateStore } from "../domain/identity.js";
 import type { Broker } from "../oauth/broker.js";
 import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
+import type { Changes } from "../runtime/changes.js";
 import { body, escapeHtml, html, json } from "./http.js";
 import { hostedMcp } from "./mcp.js";
 import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 
 export interface RequestLog { requestId: string; route: string; outcome: string; status: number; durationMs: number; detail?: string }
 
-export function hostedApp(broker: Broker, accounting: Accounting, store: StateStore,
+export function hostedApp(broker: Broker, accounting: Accounting, changes: Changes, store: StateStore,
   log: (record: RequestLog) => void = () => {}) {
   const interactions = new Interactions(broker, store);
   const provider = broker.provider.callback();
@@ -72,7 +73,8 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
           const request = JSON.parse(await body(req));
           if (Array.isArray(request)) throw new ServiceError("invalid_input", "Batch requests are not supported.", 400);
           transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-          server = hostedMcp(accounting, principal, requestSignal);
+          // A change must start 18 s before the 25 s deadline: Exact's 15 s answer bound plus 3 s for bookkeeping.
+          server = hostedMcp(accounting, changes, principal, requestSignal, (label) => { detail = label; }, started + 7_000);
           await server.connect(transport);
           await transport.handleRequest(req, res, request);
         } finally {
@@ -89,7 +91,7 @@ export function hostedApp(broker: Broker, accounting: Accounting, store: StateSt
       const message = error instanceof ServiceError ? error.message : "The request could not be completed. Start again or contact IT.";
       if (!res.headersSent && (routeName === "callback" || routeName.startsWith("interaction"))) {
         // People see these steps in a browser window, so explain the next step instead of returning JSON.
-        return html(res, "Sign-in could not finish", `<p>${escapeHtml(message)}</p><p>Close this window and start again from your AI app. If it happens again, contact Software Combined IT.</p><p class="note">Reference: ${requestId}</p>`, [], status);
+        return html(res, "Sign-in could not finish", `<p>${escapeHtml(message)}</p><p>Close this window and start again from your AI app. If it happens again, contact your IT team.</p><p class="note">Reference: ${requestId}</p>`, [], status);
       }
       if (status === 401) res.setHeader("WWW-Authenticate",
         `Bearer resource_metadata="${expected.origin}/.well-known/oauth-protected-resource/mcp", scope="exact.read"`);

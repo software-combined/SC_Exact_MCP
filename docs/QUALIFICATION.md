@@ -1,7 +1,7 @@
 # Qualification and live acceptance
 
 Owner: Software Combined IT. Source review date: 16/11/2026.
-Status: local implementation; deployed service and staff acceptance remain pending.
+Status: deployed to production; Microsoft 365 Copilot pilot passing for one person; second-person check, other AI clients and staff acceptance remain pending.
 
 ## Local evidence
 
@@ -9,16 +9,16 @@ Run `npm run verify` for the source contract, import boundaries, line limits,
 TypeScript checks, local tests, build, and production dependency audit.
 Run `npm run verify:infra` for all CloudFormation templates and their guards.
 
-The tests use the actual MCP SDK and `oidc-provider` over local HTTP.
-A fictional Exact server handles consent, code exchange, identity, and fixed reads.
-Tests cover all four operations and the actual legacy ESM stdio entry point.
+The tests use the actual Model Context Protocol (MCP) SDK and `oidc-provider` over local HTTP.
+A fictional Exact server handles consent, code exchange, identity, fixed reads and fixed changes.
+Tests cover all read and change operations and the actual legacy ESM stdio entry point.
 They also cover changed permissions, malformed fields, scoped cursors, replay,
 client isolation, shared state, cancellation, refresh races, and uncertain persistence.
 
 Shared OAuth proof includes code exchange after HTTP replica replacement.
 Independent brokers then authenticate the same persisted grant.
 Source-refresh tests use two connection managers sharing conditional state.
-These checks do not prove AWS runtime behavior or staff client support.
+These checks do not prove Amazon Web Services (AWS) runtime behaviour or support in staff AI clients.
 
 The official MCP SDK is pinned at 1.32.2.
 It replaces the inherited Aikido URL dependency so the hosted service uses the official package and current transport.
@@ -34,7 +34,7 @@ The hosted path coexists with the legacy CLI because existing local callers need
 It never imports the legacy broad catalogue.
 
 The service is deterministic and has no model, paid model call, or autonomous loop.
-Compatibility tier: T1 for its business read capability.
+Compatibility tier: T1 for business reads; the three change tools are bounded writes with the controls below.
 Applicable tool profiles are R, external untrusted content, and L, bounded result size.
 Credential rotation also has harmful replay and interruption risks.
 Shared conditional exchange state handles those internal maintenance effects.
@@ -44,37 +44,38 @@ safe errors, bounded pages, shared budgets, generation checks, metadata logs, an
 The named hosted tests verify their local enforcement.
 The [operations guide](OPERATIONS.md) owns numeric call, time, payload, and concurrency limits.
 
-Business write controls are inapplicable because no business write route exists.
-Reassess them before adding any create, update, send, book, or delete operation.
-Consequential approval controls are inapplicable to the four read tools.
-Reassess them before an external effect is added.
+Three business write tools exist: create customer, update customer, and create an unprocessed sales invoice.
+Their controls are fixed resources and fields, non-read-only tool markers for client permission settings,
+Exact's own permissions, and no automatic retry.
+Local tests cover the exact requests sent, Exact refusals, and an unknown outcome.
+No send, book, pay, or delete operation exists. Reassess before adding one.
 Delegated-agent and broad-autonomy controls are inapplicable because the service contains neither capability.
 Reassess them before introducing a model or dynamic orchestration.
-Paid-operation allowance is zero because no paid AI, enrichment, or reveal call exists.
+Paid-operation allowance is zero because no paid AI (artificial intelligence), enrichment, or reveal call exists.
 
 The shared table is needed for two replicas and rotating credentials.
-Process-local state cannot serialize independent tasks or survive a restart.
+Process-local state cannot serialise independent tasks or survive a restart.
 The app-wide gate protects code exchanges before source identity is known.
 Software Combined IT owns recovery and its app-wide reauthentication effect.
 Reassess the design if Exact provides a trustworthy identity before token exchange.
 
 Source-qualified, model-qualified, runtime-verified, and owner-accepted are separate states.
-Scripted local tests cannot establish model judgment or human acceptance.
+Scripted local tests cannot establish model judgement or human acceptance.
 No blanket Agent 57 compliance claim is made for a deployed service.
 
 ## Live qualification runbook
 
-Use the approved production rollout and the dedicated MCP Exact app.
+Use the approved production rollout and the dedicated SCG Exact MCP app.
 Keep all other integration apps and their credentials unchanged.
 Do not change an existing user's roles or company permissions for this test.
 That user can serve another integration, even when the MCP app has separate credentials.
 Test permission removal only through this new app's company consent, or a separate approved test identity.
-Record sanitized request IDs and outcomes in private operational evidence.
+Record sanitised request IDs and outcomes in private operational evidence.
 Never record financial rows, source tokens, authorization codes, or raw error payloads.
 
 1. Verify the AWS target, operator identity, region, and approved production scope.
 2. Verify the deployed revision and immutable image digest.
-3. Read back HTTPS health, issuer metadata, resource metadata, and the four tools.
+3. Read back HTTPS health, issuer metadata, resource metadata, and the eight tools.
 4. Confirm S256, exact callbacks, fixed audience, and disabled public registration.
 5. Sign in with the approved first test user through the dedicated MCP app.
 6. Confirm the displayed Exact user before client consent.
@@ -97,27 +98,27 @@ Never record financial rows, source tokens, authorization codes, or raw error pa
 23. Record the named owner's acceptance of the matching deployed revision.
 
 Negative write tests use only the local fake source.
-Never probe a live business write to prove read-only behavior.
+Never probe a live business write to prove read-only behaviour.
 Keep live negative probes below Exact's documented error limits.
 Do not revoke another app or change the existing test user's roles and company access.
 
 ## Remaining gates
 
-One checked AI app can support an approved guided pilot while other clients remain unqualified.
+One checked AI client can support an approved guided pilot while other clients remain unqualified.
 The pilot can provide the second-person permission proof.
 Wider staff release requires that proof and owner acceptance.
 
 | Gate | Current status |
 | --- | --- |
 | Source checks and local simulated outcome | Implemented; rerun on the exact reviewed candidate. |
-| Foundation change set, network, certificate, and image repository | Owner verified; runtime service remains pending. |
-| Runtime change set and task-role IAM | Pending. |
-| Deployed HTTPS service and current health | Pending. |
+| Foundation change set, network, certificate, and image repository | Owner verified. |
+| Runtime change set and task-role IAM (identity and access management) | Passed: two healthy tasks in two zones; task-role probe passed with fictional data. |
+| Deployed HTTPS service and current health | Passed: health, issuer metadata, S256 only, no public registration. |
 | Dedicated Exact app registration | Registered by the owner; consent and permission checks remain pending. |
 | Two distinct personal permission sets | Pending. |
 | Claude use | Pending. |
 | ChatGPT use | Pending. |
-| Microsoft 365 Copilot use | Pending. |
+| Microsoft 365 Copilot use | One pilot user: sign-in, company discovery, customer search, receivables and token refresh passed. Invoice lookup was denied by Exact for that login. Second-person check pending. |
 | Owner acceptance of the deployed revision | Pending; production target does not establish acceptance. |
 
 ## Source basis
@@ -134,7 +135,11 @@ Fixed projections follow the official resources for
 [identity](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SystemSystemMe),
 [customers](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=CRMAccounts),
 [sales invoices](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SalesInvoiceSalesInvoices),
-and [receivables](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=ReadFinancialReceivablesList).
+[receivables](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=ReadFinancialReceivablesList),
+[sales items](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=LogisticsItems) (`IsSalesItem`, `StandardSalesPrice`),
+[journals](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=FinancialJournals) (type 20 is sales; `IsBlocked`),
+and [sales invoice lines](https://start.exactonline.nl/docs/HlpRestAPIResourcesDetails.aspx?name=SalesInvoiceSalesInvoiceLines).
+Change bodies follow the same customer and sales invoice pages: a new invoice is Open (not processed) until printed or processed in Exact.
 
 Shared-table permissions also account for
 [DynamoDB encryption context](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/encryption.usagenotes.html).

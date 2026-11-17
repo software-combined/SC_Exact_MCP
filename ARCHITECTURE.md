@@ -59,8 +59,8 @@ An abandoned lease expires within 60 seconds and the next exchange takes it over
 A stalled writer that resumes later can only fail a conditional write or leave a token that Exact refuses.
 
 Infrastructure targets production with an HTTPS load balancer and ECS Fargate.
-Frankfurt (`eu-central-1`) is selected; Ireland (`eu-west-1`) is the supported
-alternative. At least two replicas must run across two availability zones.
+SCG's copy runs in Frankfurt (`eu-central-1`). A self-hosted copy chooses any
+region enabled in its AWS account, except the China regions. At least two replicas must run across two availability zones.
 Each zone requires its own private route and NAT gateway for independent egress.
 Shared state remains mandatory. Deployed health, permission checks, client
 qualification and owner acceptance are separate gates.

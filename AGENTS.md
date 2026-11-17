@@ -1,6 +1,6 @@
 # SCG Exact MCP instructions
 
-This repository owns SCG's hosted Exact Online read service and the retained
+This repository owns SCG's hosted Exact Online service and the retained
 BoostU command-line implementation. Normal pull requests target `development`.
 
 Read [RULES.md](RULES.md) before changing behavior and

@@ -5,10 +5,10 @@ Parameters:
   VpcCidr: { Type: String, Description: CIDR of the selected VPC }
   PublicSubnets: { Type: 'List<AWS::EC2::Subnet::Id>', Description: Two ALB subnets in separate availability zones }
   PrivateSubnets: { Type: 'List<AWS::EC2::Subnet::Id>', Description: Private task subnets with working HTTPS egress through NAT }
-  CertificateArn: { Type: String, Description: Validated ACM certificate for the production host in the selected approved EU region }
+  CertificateArn: { Type: String, Description: Validated ACM certificate for the production host in the deployment region }
   Hostname: { Type: String, AllowedPattern: '^[a-z0-9.-]+$', Description: Approved production DNS host without scheme or path }
   HostedZoneId: { Type: 'AWS::Route53::HostedZone::Id' }
-  ImageUri: { Type: String, AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.(eu-central-1|eu-west-1)\.amazonaws\.com/[a-z0-9/_-]+@sha256:[a-f0-9]{64}$' }
+  ImageUri: { Type: String, AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9/_-]+@sha256:[a-f0-9]{64}$' }
   ImageRepositoryArn: { Type: String, Description: Exact ECR repository ARN for the qualified image }
   ConfigSecretArn: { Type: String, NoEcho: true, Description: Existing Secrets Manager JSON configuration ARN. Never its value. }
   ConfigKeyArn: { Type: String, Description: KMS key ARN protecting the configuration secret }
@@ -22,11 +22,6 @@ Parameters:
   TagDataClass: { Type: String, Description: Approved data classification tag }
   TagRetentionClass: { Type: String, Description: Approved retention class tag }
   TagReviewBy: { Type: String, Description: Approved review date tag }
-Rules:
-  ApprovedEuropeOnly:
-    Assertions:
-      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
-        AssertDescription: This production template may run only in Frankfurt or Ireland.
 Resources:
   DataKey:
     Type: AWS::KMS::Key
@@ -193,15 +188,12 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
       Tags:
-        - { Key: Project, Value: scg-exact-mcp }
         - { Key: System, Value: exact-mcp }
         - { Key: Environment, Value: production }
         - { Key: Owner, Value: !Ref TagOwner }
-        - { Key: ManagedBy, Value: sc-infrastructure }
         - { Key: DataClass, Value: !Ref TagDataClass }
         - { Key: RetentionClass, Value: !Ref TagRetentionClass }
         - { Key: ReviewBy, Value: !Ref TagReviewBy }
-        - { Key: Company, Value: software-combined }
       ContainerDefinitions:
         - Name: exact-mcp
           Image: !Ref ImageUri

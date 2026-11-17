@@ -9,7 +9,9 @@ const https = z.url().refine((value) => {
   return url.protocol === "https:" && !url.hash && !url.username && !url.password;
 });
 const positive = z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().safe().positive());
-const envSchema = z.object({ SCG_ENVIRONMENT: z.literal("production"), AWS_REGION: z.enum(["eu-central-1", "eu-west-1"]),
+// AWS region code, such as eu-central-1. Also used by reconcile.ts.
+export const awsRegion = z.string().regex(/^[a-z]{2}(-[a-z]+)+-\d+$/);
+const envSchema = z.object({ SCG_ENVIRONMENT: z.literal("production"), AWS_REGION: awsRegion,
   SCG_ORIGIN: https.refine((value) => new URL(value).origin === value),
   SCG_STATE_TABLE: z.string().regex(/^[A-Za-z0-9_.-]{3,255}$/), SCG_KMS_KEY_ARN: z.string().min(20),
   SCG_EXACT_APP_ID: z.string().min(1).max(200),

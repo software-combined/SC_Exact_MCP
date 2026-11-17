@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-const division = z.number().int().positive().max(2_147_483_647);
+export const division = z.number().int().positive().max(2_147_483_647);
 const cursor = z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional();
-const guid = z.guid();
+export const guid = z.guid();
 const date = z.iso.date();
 const amount = z.number().finite();
 const currency = z.string().regex(/^[A-Z]{3}$/);
@@ -17,6 +17,9 @@ export const inputs = {
     invoiceNumber: z.number().int().positive().max(2_147_483_647).optional(), cursor })
     .refine((v) => Boolean(v.invoiceId) !== Boolean(v.invoiceNumber), "Supply exactly one invoice identifier.")
     .refine((v) => !v.invoiceId || !v.cursor, "A keyed invoice read cannot use a cursor."),
+  item_search: z.strictObject({ division, description: z.string().min(2).max(60).optional(),
+    code: z.string().min(1).max(30).optional(), cursor }).refine((v) => Boolean(v.description) !== Boolean(v.code),
+    "Supply exactly one of description or code."),
   receivables: z.strictObject({ division, overdueBefore: date.optional(), customerId: guid.optional(), cursor }),
 } as const;
 export type Operation = keyof typeof inputs;
@@ -26,6 +29,8 @@ export const companySchema = z.strictObject({ division, name: label, currency })
 export const customerSchema = z.strictObject({ id: guid, code: z.string().max(40), name: label });
 export const invoiceSchema = z.strictObject({ id: guid, invoiceNumber: z.number().int(), customer: label,
   invoiceDate: date, dueDate: date.nullable(), currency, amount: amount, status: z.number().int() });
+export const itemSchema = z.strictObject({ id: guid, code: z.string().max(30), description: label,
+  standardSalesPrice: amount.nullable() });
 export const receivableSchema = z.strictObject({ id: z.string().regex(/^\d+$/), customerId: guid, customerCode: z.string().max(40),
   customer: label, invoiceNumber: z.number().int(), invoiceDate: date, dueDate: date.nullable(),
   currency, openAmount: amount });
@@ -40,12 +45,13 @@ function page<T extends z.ZodType>(item: T) {
     rows: z.array(item).max(100) });
 }
 export const outputs = { company_discovery: page(companySchema), customer_search: page(customerSchema),
-  invoice_lookup: page(invoiceSchema), receivables: page(receivableSchema) } as const;
+  invoice_lookup: page(invoiceSchema), item_search: page(itemSchema), receivables: page(receivableSchema) } as const;
 export type Page = z.infer<(typeof outputs)[Operation]>;
 
 export const descriptions: Record<Operation, string> = {
   company_discovery: "List companies this personal Exact login can currently open. Call first to choose a division. Bounded live page; use only its opaque cursor to continue.",
   customer_search: "Find customers in one selected company by name text or exact customer code. Returns a bounded live page, never all customers implicitly.",
   invoice_lookup: "Look up sales invoices in one company by invoice ID or invoice number. Empty means absent only for the completed query. Amount includes VAT in invoice currency.",
+  item_search: "Find sales items in one company by description text or exact item code, for example to get item IDs for an invoice. Standard sales price is in the company currency.",
   receivables: "Read outstanding receivables in one company, optionally by customer or due before a date. Amounts retain row currency; no total is calculated. Current outstanding balances, not historical as-of balances.",
 };

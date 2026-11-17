@@ -10,6 +10,7 @@ import { installShutdown } from "./runtime/shutdown.js";
 import { Connections } from "./runtime/connections.js";
 import { Cursors } from "./runtime/cursors.js";
 import { Accounting } from "./runtime/accounting.js";
+import { Changes } from "./runtime/changes.js";
 import { Broker } from "./oauth/broker.js";
 import { hostedApp } from "./transport/app.js";
 
@@ -28,7 +29,8 @@ async function main() {
   const connections = new Connections(store, new KmsCipher(env.SCG_KMS_KEY_ARN, config.source.appId, env.AWS_REGION), source);
   const accounting = new Accounting(connections, budgets, new Cursors(store, config.source.appId, config.source.region));
   const broker = new Broker(config.broker, store, connections, budgets.signIns());
-  const server = hostedApp(broker, accounting, store, (record) => process.stdout.write(`${JSON.stringify(record)}\n`));
+  const changes = new Changes(connections, budgets);
+  const server = hostedApp(broker, accounting, changes, store, (record) => process.stdout.write(`${JSON.stringify(record)}\n`));
   server.listen(env.PORT, "0.0.0.0", () => process.stdout.write('{"event":"listening"}\n'));
   installShutdown(server);
 }
