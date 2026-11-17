@@ -14,11 +14,11 @@ export async function body(req: IncomingMessage, max = 32_000): Promise<string> 
   return Buffer.concat(chunks).toString("utf8");
 }
 /**
- * A log-safe rendering of a header value. Only letters, digits, and the characters . : , - and space are kept;
- * any other character (including a line break) becomes "?". The result is capped at 80 characters.
+ * A log-safe rendering of a request or header value. Only letters, digits, and the characters . : , / - and space
+ * are kept; any other character (including a line break) becomes "?". The result is capped at 80 characters.
  */
-const headerLabel = (value: string | string[] | undefined) =>
-  value === undefined ? "missing" : String(value).replace(/[^a-z0-9.:,\- ]/gi, "?").slice(0, 80);
+export const headerLabel = (value: string | string[] | undefined) =>
+  value === undefined ? "missing" : String(value).replace(/[^a-z0-9.:,/\- ]/gi, "?").slice(0, 80);
 
 /**
  * Returns why a request is not for this service over HTTPS, or undefined when it is. A Host with the default port

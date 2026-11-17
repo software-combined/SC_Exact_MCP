@@ -6,7 +6,7 @@ import type { Broker } from "../oauth/broker.js";
 import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
 import type { Changes } from "../runtime/changes.js";
-import { body, escapeHtml, html, json, targetProblem } from "./http.js";
+import { body, escapeHtml, headerLabel, html, json, targetProblem } from "./http.js";
 import { hostedMcp } from "./mcp.js";
 import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 
@@ -34,10 +34,14 @@ export function hostedApp(broker: Broker, accounting: Accounting, changes: Chang
     res.once("close", () => {
       clearTimeout(timer);
       if (!res.writableEnded) { deadline.abort(); if (outcome === "completed") outcome = "cancelled"; }
+      // Name the missing address so a client calling the wrong URL can be diagnosed; the query is never logged.
+      if (routeName === "provider" && res.statusCode === 404 && !detail) detail = `path:${headerLabel(req.method)} ${headerLabel((req.url ?? "/").split("?")[0])}`;
       log({ requestId, route: routeName, outcome, status: res.statusCode, durationMs: Date.now() - started, ...(detail ? { detail } : {}) });
     });
     try {
       const url = new URL(req.url ?? "/", expected);
+      // Some clients add a trailing slash to the configured MCP URL.
+      if (url.pathname === "/mcp/") url.pathname = "/mcp";
       if (url.pathname === "/health" && req.method === "GET") { routeName = "health"; return json(res, 200, { status: "ready" }); }
       const problem = targetProblem(req.headers, url, expected);
       if (problem) throw new ServiceError("denied", "Invalid service host or protocol.", 400, problem);
