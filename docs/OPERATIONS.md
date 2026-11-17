@@ -42,6 +42,7 @@ A failed continuation requires a fresh query.
 Logs contain request ID, route label, outcome, status, and duration.
 A failed request can add a fixed detail label, such as `connect:identity:reauth_required`.
 The label names the failed step and error class. It never contains source data or error text.
+A request refused by the first host and HTTPS check is labelled `host:`, `proto:` or `target:` with the cleaned-up value received, for example `host:other.example.com`.
 Do not enable request-body, authorization-header, token-endpoint, or financial-response logging.
 Use request IDs to investigate failures. Staff see the request ID as the reference on sign-in error pages.
 
