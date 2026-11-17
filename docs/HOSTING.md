@@ -128,15 +128,31 @@ Users on the basic Copilot Chat plan can add the agent.
 Before you start, choose a new GUID as the agent's Teams app ID. It becomes the `id` in `manifest.json` (see the package table below).
 
 1. Allow the callback `https://teams.microsoft.com/api/platform/v1.0/oAuthRedirect` on the Copilot client in private configuration.
-2. In the [Teams Developer Portal](https://dev.teams.microsoft.com/tools), open **Tools**, then **OAuth client registration**, then **Register client**.
-3. Set **Base URL** to `https://<approved-host>/mcp`.
-4. Select **My organization only** and **Existing Teams app**, and enter the agent's Teams app ID. Then only your own organisation's copy of the agent can use this registration. Set both choices when you create the registration; changing them later did not persist. Microsoft's guide warned that binding breaks MCP tool calls, but binding worked in the live test on 16/11/2026.
-5. Set the authorization endpoint to `/auth`, and the token and refresh endpoints to `/token`, on the approved host.
-6. Set **Scope** to `exact.read`, switch on **PKCE**, and keep **Request body parameters**.
-7. Paste the Copilot client ID and secret from private configuration. Do not show them in chat, screenshots or tickets.
-8. Save, and copy the **OAuth client registration ID**. It is a reference, not a secret.
+2. Build the service and a first package. The registration does not exist yet, so use `pending` as its ID:
 
-Then build the app package. It has five files:
+   ```sh
+   npm run build
+   npm run copilot:package -- --host <approved-host> --app-id <Teams app ID> --registration-id pending --version 1.0.0 --out scg-exact-copilot.zip
+   ```
+
+   Add `--developer-name`, `--website-url`, `--privacy-url` and `--terms-url` to every build, so the package shows your company as the publisher.
+
+3. In the [Teams admin center](https://admin.teams.microsoft.com/policies/manage-apps), select **Upload new app** and upload the zip. Do not make it available to people yet.
+4. Open **SCG Exact** in **Manage apps** and copy its **App ID**. The admin center sets this ID. It is not the `id` in `manifest.json`.
+5. In the [Teams Developer Portal](https://dev.teams.microsoft.com/tools), open **Tools**, then **OAuth client registration**, then **Register client**.
+6. Set **Base URL** to `https://<approved-host>/mcp`.
+7. Select **My organization only** and **Existing Teams app**. Enter the App ID from step 4. Set both now. You cannot change them after you save.
+   If the registration has the `id` from `manifest.json` instead, Copilot refuses every tool call.
+   Do not select **Any Teams app**. Other apps in your organisation could then use this registration.
+8. Set the authorization endpoint to `/auth`, and the token and refresh endpoints to `/token`, on the approved host.
+9. Set **Scope** to `exact.read`, switch on **PKCE**, and keep **Request body parameters**.
+10. Paste the Copilot client ID and secret from private configuration. Do not show them in chat, screenshots or tickets.
+11. Save, and copy the **OAuth client registration ID**. It is a reference, not a secret.
+12. Build the package again with the same command, that registration ID and a higher version, such as `--version 1.0.1`.
+    In the admin center, open **SCG Exact** and upload the zip with **Upload file** under **New version**.
+13. Make SCG Exact available to the pilot users first. Staff then add **SCG Exact** from **Agents** in Copilot.
+
+The package has five files:
 
 | File | Content |
 | --- | --- |
@@ -145,18 +161,25 @@ Then build the app package. It has five files:
 | `plugin.json` | Plugin manifest v2.4 with one `RemoteMCPServer` runtime, `auth.type` `OAuthPluginVault`, and `reference_id` set to the registration ID |
 | `color.png`, `outline.png` | 192 by 192 colour icon and 32 by 32 white outline icon |
 
-In `plugin.json`, set `spec.url` to the MCP URL, set `run_for_functions` to `["*"]` and `functions` to `[]`, and leave out `mcp_tool_description`.
-Copilot then reads the tools, their descriptions and their read-only or change markers live from the service's `tools/list` response.
-Keep the agent instructions general and name no tools, so new tools need no package change.
+The script reads the tool list from the service code. It writes the list into `spec.mcp_tool_description.tools`, `run_for_functions` and `functions` in `plugin.json`.
+
+The package must list the tools. Copilot shows the **Sign in** card only for a tool that the package lists.
+Without the list, a person who is not signed in sees no tools and gets no sign-in.
 Validate each file against the schema URL in its `$schema` field before upload.
 
-Upload the zip in the [Teams admin center](https://admin.teams.microsoft.com/policies/manage-apps) with **Upload new app**.
-Make it available only to the pilot users at first. Staff then add **SCG Exact** from **Agents** in Copilot.
 Each company runs its own deployment, with its own Exact app, registration and package.
-If one deployment must serve staff in another Microsoft 365 organisation on the same Exact subscription, choose **Any Microsoft 365 organization** in step 4 instead, with the owner's written approval.
-Any organisation that holds the zip could then upload an altered copy with the same app ID. That copy reaches only that organisation's own people and their own Exact access.
-Tool changes come from the service, so nobody re-uploads the package for them.
-Rebuild with a higher `version` and upload again when the name, icons, starters, instructions or OAuth client registration ID change.
+To serve staff in another Microsoft 365 organisation on the same Exact subscription from one deployment, get the owner's written approval first.
+That organisation's Microsoft 365 admin uploads the first package (steps 3 and 4) and sends you its App ID.
+You create a registration for it with **Any Microsoft 365 organization** and that App ID in step 7, then send the rebuilt package for its admin to upload.
+Most changes need no new package. Query logic, fixes, limits and the text of tool results come from the service.
+Build a new package with a higher `version`, and upload it, when one of these changes:
+
+- a tool is added, removed or renamed;
+- a tool's description, inputs or read-only marker;
+- the name, icons, starters or agent instructions;
+- the OAuth client registration ID.
+
+After an upload, Copilot can show the previous version for some time. Before you test, type `-developer on` in the chat and check the version under **Agent debug info**.
 
 See Microsoft's [MCP plugin guide](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/build-mcp-plugins)
 and [OAuth guide](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-authentication-oauth).
