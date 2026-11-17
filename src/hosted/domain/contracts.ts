@@ -66,7 +66,7 @@ export const receivableSchema = z.strictObject({ id: z.string().regex(/^\d+$/), 
   currency, openAmount: amount });
 
 /** Version of the output fields. Cursors bind it, so a change invalidates older cursors. */
-export const projectionVersion = 2;
+export const projectionVersion = 3;
 const coverage = z.strictObject({ state: z.enum(["complete", "partial"]),
   scope: z.literal("one live query; pages are not a snapshot or financial total"),
   returned: z.number().int().min(0).max(100), nextCursor: cursor });
@@ -95,6 +95,6 @@ export const descriptions: Record<Operation, string> = {
     "With no other filter, it lists the first items. Optional filters: description (part of the text) and code (the exact item " +
     `code). Use limit for fewer rows. Standard sales price is in the company currency. ${more} ${data}`,
   receivables: "List outstanding receivables (money customers still owe) in one company. Only division is required. Optional " +
-    "filters: the customer name as customer (or customerId), and overdueDays (at least this many days past due) or overdueBefore " +
+    "filters: the customer name as customer (or customerId), and overdueDays (at least this many days past due, by the company's date) or overdueBefore " +
     "(due before a date). Amounts keep the row currency. These are current balances, not past balances. " + `${more} ${data}`,
 };

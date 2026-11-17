@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { exactFixture, USER_A, USER_B, ITEM, CUSTOMER_TWO, customerRow, customerTwoRow, customerThreeRow, itemRow } from "./exact-fixture.js";
 import type { Principal } from "../../src/hosted/domain/identity.js";
 import { serviceTools } from "../../scripts/build-copilot-package.mjs";
@@ -55,6 +55,23 @@ describe("reads with only a company", () => {
     }
   });
 
+  it("continues after the last record shown when the list changes, and refuses when that record is gone", async () => {
+    const h = await setup(); const added = { ...customerThreeRow, ID: ITEM, Code: "C000" };
+    h.fake.customers = [customerRow, customerTwoRow, customerThreeRow];
+    const first = await h.read("customer_search", { division: 123456, limit: 1 });
+    h.fake.customers = [added, customerRow, customerTwoRow, customerThreeRow];
+    const second = await h.read("customer_search", { division: 123456, limit: 1, cursor: first.coverage.nextCursor });
+    expect(second.rows).toMatchObject([{ id: CUSTOMER_TWO }]);
+    h.fake.customers = [added, customerRow, customerThreeRow];
+    await expect(h.read("customer_search", { division: 123456, limit: 1, cursor: second.coverage.nextCursor }))
+      .rejects.toMatchObject({ code: "denied", message: "The list changed while you were paging. Ask again from the start." });
+    h.fake.customers = [customerRow, customerTwoRow, customerThreeRow];
+    const third = await h.read("customer_search", { division: 123456, limit: 1 });
+    h.fake.customers = [{ ...customerRow, Code: "C009" }, customerTwoRow, customerThreeRow];
+    await expect(h.read("customer_search", { division: 123456, limit: 1, cursor: third.coverage.nextCursor }))
+      .rejects.toMatchObject({ code: "denied" });
+  });
+
   it("lists invoices newest first, by customer name, dates and status, with a readable status", async () => {
     const h = await setup();
     const recent = await h.read("invoice_lookup", { division: 123456 });
@@ -71,9 +88,13 @@ describe("reads with only a company", () => {
 
   it("reads receivables by customer name and by days overdue", async () => {
     const h = await setup();
-    await h.read("receivables", { division: 123456, customer: "Fictional", overdueDays: 30 });
-    const before = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
-    expect(h.last("ReceivablesList").query.get("$filter")).toBe(`DueDate lt datetime'${before}T00:00:00' and AccountId eq guid'${USER_B}'`);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      // 23:30 UTC is already the next day in Amsterdam, the fixture's region; days count from the company's date.
+      vi.setSystemTime(new Date("2026-11-16T23:30:00Z"));
+      await h.read("receivables", { division: 123456, customer: "Fictional", overdueDays: 30 });
+    } finally { vi.useRealTimers(); }
+    expect(h.last("ReceivablesList").query.get("$filter")).toBe(`DueDate lt datetime'2026-10-19T00:00:00' and AccountId eq guid'${USER_B}'`);
   });
 
   it("stops a read when a customer name matches no one or several customers, and picks a unique exact name", async () => {
