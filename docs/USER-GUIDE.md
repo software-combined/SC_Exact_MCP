@@ -25,7 +25,7 @@ Never paste a password, secret or token (a digital key that gives access) into a
 3. Search for **SCG Exact**, select it, then select **Add**.
    If you cannot find it, IT has not yet made it available to you.
 4. In the SCG Exact chat, ask: "Which Exact companies can I open?"
-5. Copilot asks to connect to SCG Exact. Select **Confirm**.
+5. Copilot asks to connect to SCG Exact. Select **Allow** (some versions say **Confirm**).
 6. Select **Sign in to SCG Exact**. Copilot opens the sign-in page in a separate window. This is normal for Copilot.
 7. Follow [Sign in to Exact](#sign-in-to-exact) below.
 
@@ -60,7 +60,8 @@ Menu names can differ slightly between workspaces. Ask IT if you cannot find the
 
 You do this once for each AI assistant.
 
-1. On the **Connect Exact Online** page, select **Continue to Exact**.
+1. On the **Connect Exact Online** page, select **Continue to Exact** once.
+   If the page does not change after 5 seconds, close the window. Ask your question again in your AI assistant.
 2. Sign in to Exact with your own account. Your password goes only to Exact.
 3. If Exact asks you to grant access, approve it.
 4. On the **Allow access** page, check the name after "Signed in to Exact as".
@@ -110,6 +111,8 @@ Every error page shows a **Reference**. Send that reference to IT. Do not send s
 | --- | --- |
 | You cannot find SCG Exact | Ask IT to make it available to you. |
 | "Sign-in could not finish" | Close the window and start again from your AI assistant. If it fails again, stop and send the reference to IT. |
+| **Continue to Exact** does nothing | Close the window, ask your question again, and select **Continue to Exact** once. |
+| The assistant says the Exact tools are unavailable | Start a new chat with SCG Exact. If it still says so, tell IT. |
 | The assistant asks you to sign in again | Sign in again. Your saved connection expired or was reset. If IT reset all connections, everyone signs in again. |
 | Exact denies access to a company | Your Exact account cannot open that company. Ask your Exact administrator. |
 | A message about a limit or a retry delay | Wait for the time the message gives, then ask a narrower question. If it gives no time, ask IT. |

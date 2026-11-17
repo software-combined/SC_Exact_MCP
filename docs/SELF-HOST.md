@@ -86,33 +86,43 @@ To preview the network and storage changes first, add `--review`. It stops after
    npm run copilot:package -- --new-app-id
    ```
 
-2. In the [Teams Developer Portal](https://dev.teams.microsoft.com/tools), open **OAuth client registration** and select **Register client**. Fill in:
+2. Build the service and a first package. The registration does not exist yet, so use `pending` as its ID. The package lists the tools, so that Copilot can ask people to sign in:
+
+   ```sh
+   npm run build
+   npm run copilot:package -- --host <your-host> --app-id <ID from step 1> --registration-id pending --version 1.0.0 --out scg-exact-copilot.zip
+   ```
+
+   To show your own company as the publisher, add `--developer-name`, `--website-url`, `--privacy-url` and `--terms-url`. Add them to every build, including step 8.
+
+3. In the [Teams admin center](https://admin.teams.microsoft.com/policies/manage-apps), select **Upload new app** and upload the zip. Do not make it available to people yet.
+4. Open **SCG Exact** in **Manage apps** and copy its **App ID**. The admin center sets this ID. It is not the ID from step 1.
+5. In the [Teams Developer Portal](https://dev.teams.microsoft.com/tools), open **OAuth client registration** and select **Register client**. Fill in:
    - **Base URL**: `https://<your-host>/mcp`
    - **Restrict usage by organization**: **My organization only**
-   - **Restrict usage by Teams app**: **Existing Teams app**, with the ID from step 1
-   - Set both restrictions now: changing them after you save did not stick in our tests.
+   - **Restrict usage by Teams app**: **Existing Teams app**, with the App ID from step 4. With the ID from step 1, Copilot refuses every tool call.
+     Do not select **Any Teams app**. Other apps in your organisation could then use this registration.
+   - Set both restrictions now. You cannot change them after you save.
    - **Authorization endpoint**: `https://<your-host>/auth`
    - **Token endpoint** and **Refresh endpoint**: `https://<your-host>/token`
    - **Scope**: `exact.read`, with **PKCE** switched on and **Request body parameters** selected
-3. Copy the client ID, paste it into **Client ID**, then do the same for the secret. Neither value is shown on screen. Copy something else afterwards, so the secret does not stay on the clipboard:
+6. Copy the client ID, paste it into **Client ID**, then do the same for the secret. Neither value is shown on screen. Copy something else afterwards, so the secret does not stay on the clipboard:
 
    ```sh
    npm run copy:credential -- /secure/path/exact-mcp-config.json copilot id
    npm run copy:credential -- /secure/path/exact-mcp-config.json copilot secret
    ```
 
-4. Select **Save** and copy the **OAuth client registration ID**.
-5. Build the package:
+7. Select **Save** and copy the **OAuth client registration ID**.
+8. Build the package again with that registration ID and a higher version:
 
    ```sh
-   npm run copilot:package -- --host <your-host> --app-id <ID from step 1> --registration-id <registration ID> --out scg-exact-copilot.zip
+   npm run copilot:package -- --host <your-host> --app-id <ID from step 1> --registration-id <registration ID> --version 1.0.1 --out scg-exact-copilot.zip <publisher flags from step 2>
    ```
 
-   To show your own company as the publisher, add `--developer-name`, `--website-url`, `--privacy-url` and `--terms-url`.
-
-6. In the [Teams admin center](https://admin.teams.microsoft.com/policies/manage-apps), select **Upload new app** and upload the zip.
+9. In the admin center, open **SCG Exact** and upload the zip with **Upload file** under **New version**.
    Make **SCG Exact** available to a few people first.
-7. Test it: in Copilot, open **Agents**, add **SCG Exact**, ask "Which Exact companies can I open?" and sign in to Exact.
+10. Test it: in Copilot, open **Agents**, add **SCG Exact**, ask "Which Exact companies can I open?" and sign in to Exact.
 
 Staff steps are in the [staff guide](USER-GUIDE.md). It is written for Software Combined's copy: where it says Software Combined IT, your staff contact your own IT team.
 
@@ -133,8 +143,10 @@ npm ci
 npm run deploy -- --settings /secure/path/deploy-settings.json
 ```
 
-The service replaces its containers one at a time. Copilot reads the tools from your service, so you do not upload the package again.
-Build a new package only when you change its name, icons, starters or instructions, or your registration ID.
+The service replaces its containers one at a time. Most updates need no new package.
+Build and upload a new package when an update adds, removes or renames a tool, or changes a tool's description, inputs or read-only marker.
+Also build one when you change the name, icons, starters, instructions or registration ID.
+If you are not sure, build the package and compare its `plugin.json` with the one you uploaded last.
 Give it a higher version each time, such as `--version 1.0.1`, then upload it in the Teams admin center.
 Never move back to a version older than the one you run; read [rollback and retained state](OPERATIONS.md#rollback-and-retained-state).
 If you upgrade from a read-only version to one with change tools, sign everyone in again once ([revoking all connections](OPERATIONS.md#abandoned-exchanges-and-revoking-all-connections)). Then everyone approves under the new wording, which includes changes.
