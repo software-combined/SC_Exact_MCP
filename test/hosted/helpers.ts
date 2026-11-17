@@ -62,13 +62,17 @@ export class Browser {
     }
     return current;
   }
-  async submit(response: Response): Promise<Response> {
+  /** Posts the page's form. Like a browser, it treats a page that opens another URL at once as a redirect to it. */
+  async submit(response: Response, raw = false): Promise<Response> {
     const markup = await response.text();
     const action = /action="([^"]+)"/.exec(markup)?.[1];
     const nonce = /name="nonce" value="([^"]+)"/.exec(markup)?.[1];
     if (!action || !nonce) throw new Error(`No consent form: ${markup}`);
-    return this.request(action, { method: "POST", body: new URLSearchParams({ nonce }),
+    const result = await this.request(action, { method: "POST", body: new URLSearchParams({ nonce }),
       headers: { "Content-Type": "application/x-www-form-urlencoded", Origin: this.origin } });
+    if (raw || result.status !== 200) return result;
+    const refresh = /http-equiv="refresh" content="0;url=([^"]+)"/.exec(await result.clone().text())?.[1];
+    return refresh ? new Response(null, { status: 303, headers: { Location: refresh.replaceAll("&amp;", "&") } }) : result;
   }
 }
 

@@ -61,10 +61,14 @@ font-family:inherit;font-size:16px;font-weight:600;line-height:1.2;cursor:pointe
 .note{font-size:14px;color:#6b6c72}`;
 const styleHash = createHash("sha256").update(style).digest("base64");
 
-/** Renders a sign-in page. Callers must escape any dynamic text they place in `content`. */
-export function html(res: ServerResponse, title: string, content: string, formOrigins: readonly string[], status = 200) {
+/**
+ * Renders a sign-in page. Callers must escape any dynamic text they place in `content`.
+ * `refresh` makes the page open that URL at once, as a new navigation rather than a form redirect.
+ */
+export function html(res: ServerResponse, title: string, content: string, formOrigins: readonly string[], status = 200,
+  refresh?: string) {
   res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store",
     "Referrer-Policy": "same-origin",
     "Content-Security-Policy": `default-src 'none'; img-src data:; style-src 'sha256-${styleHash}'; form-action 'self' ${formOrigins.map((value) => new URL(value).origin).join(" ")}; base-uri 'none'; frame-ancestors 'none'` });
-  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${style}</style></head><body><main><div class="brands"><img src="${scgLogo}" alt="Software Combined"><span aria-hidden="true"></span><img class="exact" src="${exactLogo}" alt="Exact"></div><h1>${escapeHtml(title)}</h1>${content}</main></body></html>`);
+  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title>${refresh ? `<meta http-equiv="refresh" content="0;url=${escapeHtml(refresh)}">` : ""}<style>${style}</style></head><body><main><div class="brands"><img src="${scgLogo}" alt="Software Combined"><span aria-hidden="true"></span><img class="exact" src="${exactLogo}" alt="Exact"></div><h1>${escapeHtml(title)}</h1>${content}</main></body></html>`);
 }
