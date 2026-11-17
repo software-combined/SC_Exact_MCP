@@ -8,24 +8,30 @@ import { parseArgs } from "node:util";
 // Deploys one self-hosted copy: foundation stack, configuration secret, container image and service stack.
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-/** Validates the settings file and fills safe defaults. */
-export function readSettings(text) {
-  const s = JSON.parse(text);
-  const need = (cond, message) => { if (!cond) throw new Error(`Settings: ${message}`); };
-  need(/^[a-z]{2}(-[a-z]+)+-\d+$/.test(s.region ?? ""), "region must be an AWS region code, such as eu-central-1 or ap-southeast-2.");
+export const need = (cond, message) => { if (!cond) throw new Error(`Settings: ${message}`); };
+
+/** Validates the settings every cloud shares and fills the budget defaults. */
+export function sharedSettings(s) {
   need(/^[a-z0-9.-]+$/.test(s.hostname ?? ""), "hostname must be a bare host name, such as exact-mcp.example.com.");
-  need(/^Z[A-Z0-9]+$/.test(s.hostedZoneId ?? ""), "hostedZoneId must be the Route 53 hosted zone ID for that host name.");
   need(typeof s.exactAppId === "string" && s.exactAppId.length > 0, "exactAppId is required.");
   need(typeof s.configFile === "string" && isAbsolute(s.configFile), "configFile must be an absolute path to the private configuration.");
   need(!resolve(s.configFile).startsWith(resolve(root) + sep), "configFile must be outside this repository, so it can never be committed.");
   const budgets = { appPerMinute: 30, divisionPerMinute: 10, appPerDay: 500, divisionPerDay: 200, ...s.budgets };
   need(budgets.appPerMinute >= 8 && budgets.appPerDay >= 8, "app budgets must be at least 8.");
+  return { ...s, tags: s.tags ?? {}, budgets };
+}
+
+/** Validates the AWS settings file and fills safe defaults. */
+export function readSettings(text) {
+  const s = sharedSettings(JSON.parse(text));
+  need(/^[a-z]{2}(-[a-z]+)+-\d+$/.test(s.region ?? ""), "region must be an AWS region code, such as eu-central-1 or ap-southeast-2.");
+  need(/^Z[A-Z0-9]+$/.test(s.hostedZoneId ?? ""), "hostedZoneId must be the Route 53 hosted zone ID for that host name.");
   // One AWS account can hold several copies, so each host name gets its own stacks by default.
   // The readable part can repeat ("a-b.c" and "a.b-c"), so a short host fingerprint keeps names unique.
   const fingerprint = createHash("sha256").update(s.hostname).digest("hex").slice(0, 8);
   const stackPrefix = s.stackPrefix ?? `exact-mcp-${s.hostname.replaceAll(".", "-").slice(0, 60)}-${fingerprint}`;
   need(/^[a-z][a-z0-9-]{0,99}$/.test(stackPrefix), "stackPrefix must start with a lowercase letter and use only lowercase letters, digits and hyphens.");
-  return { ...s, stackPrefix, tags: s.tags ?? {}, budgets };
+  return { ...s, stackPrefix };
 }
 
 /** Stops a deploy that would take over another copy's stacks. */
@@ -50,15 +56,21 @@ export function checkConfig(text, exactAppId) {
  * A stored value without a matching fingerprint (filled by hand, or an interrupted run) counts as different.
  */
 export function checkConfigChange(secret, hash, replace) {
-  const deployedHash = secret.Tags?.find((tag) => tag.Key === "ConfigSha256")?.Value;
-  if (Object.keys(secret.VersionIdsToStages ?? {}).length > 0 && deployedHash !== hash && !replace) {
+  guardConfigChange(secret.Tags?.find((tag) => tag.Key === "ConfigSha256")?.Value,
+    Object.keys(secret.VersionIdsToStages ?? {}).length > 0, hash, replace);
+}
+
+/** The rule behind checkConfigChange, for any cloud's secret store. */
+export function guardConfigChange(deployedHash, hasStoredValue, hash, replace) {
+  if (hasStoredValue && deployedHash !== hash && !replace) {
     throw new Error("This configuration file differs from the deployed one. Deploying it signs everyone out. If that is intended, run again with --replace-config.");
   }
 }
 
+export const baseTags = { Project: "exact-mcp", System: "exact-mcp", Environment: "production", ManagedBy: "exact-mcp-self-host" };
+
 export function stackTags(s) {
-  return ["--tags", "Project=exact-mcp", "System=exact-mcp", "Environment=production", "ManagedBy=exact-mcp-self-host",
-    ...Object.entries(s.tags).map(([key, value]) => `${key}=${value}`)];
+  return ["--tags", ...[...Object.entries(baseTags), ...Object.entries(s.tags)].map(([key, value]) => `${key}=${value}`)];
 }
 
 /** Service stack parameters, built from the foundation outputs and the settings. */

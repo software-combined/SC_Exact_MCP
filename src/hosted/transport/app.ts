@@ -6,7 +6,7 @@ import type { Broker } from "../oauth/broker.js";
 import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
 import type { Changes } from "../runtime/changes.js";
-import { body, escapeHtml, html, json } from "./http.js";
+import { body, escapeHtml, html, json, targetProblem } from "./http.js";
 import { hostedMcp } from "./mcp.js";
 import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 
@@ -39,10 +39,8 @@ export function hostedApp(broker: Broker, accounting: Accounting, changes: Chang
     try {
       const url = new URL(req.url ?? "/", expected);
       if (url.pathname === "/health" && req.method === "GET") { routeName = "health"; return json(res, 200, { status: "ready" }); }
-      if (req.headers.host !== expected.host || url.origin !== expected.origin) throw new ServiceError("denied", "Invalid service host.", 400);
-      if (expected.protocol === "https:" && req.headers["x-forwarded-proto"] !== "https") {
-        throw new ServiceError("denied", "HTTPS is required.", 400);
-      }
+      const problem = targetProblem(req.headers, url, expected);
+      if (problem) throw new ServiceError("denied", "Invalid service host or protocol.", 400, problem);
       if (url.pathname === "/.well-known/oauth-protected-resource/mcp" || url.pathname === "/.well-known/oauth-protected-resource") {
         routeName = "metadata";
         if (req.method !== "GET") throw new ServiceError("invalid_input", "Use GET for metadata.", 405);

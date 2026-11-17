@@ -9,7 +9,7 @@ Start with the document for your task.
 | --- | --- |
 | Guided pilot, staff connection, and everyday questions | [Staff guide](USER-GUIDE.md) |
 | Data access, privacy, and how the service works | [Security questions](FAQ.md) |
-| Running your own copy in your own AWS account | [Deploy your own copy](SELF-HOST.md) |
+| Running your own copy in your own AWS account or Azure subscription | [Deploy your own copy](SELF-HOST.md) |
 | Operator setup and rollout | [Hosting guide](HOSTING.md) |
 | Errors, disconnect, and revoking all connections | [Operations guide](OPERATIONS.md) |
 | Local proof and remaining acceptance gates | [Qualification](QUALIFICATION.md) |
