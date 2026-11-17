@@ -2,7 +2,8 @@ import { z } from "zod";
 import type { Query } from "../domain/contracts.js";
 import { plan, type ReadPlan } from "./query-plan.js";
 import { exactUserSchema, ServiceError, type Region, type SourceTokens } from "../domain/identity.js";
-import { jsonResponse, rowsEnvelope } from "./http.js";
+import { changeResponse, jsonResponse, rowsEnvelope } from "./http.js";
+import type { ChangeRequest } from "./changes.js";
 import { tokenResponse } from "./token-response.js";
 
 const origins: Record<Region, string> = { nl: "https://start.exactonline.nl", be: "https://start.exactonline.be",
@@ -58,9 +59,13 @@ export class ExactSource {
     }
     return parsed.data;
   }
+  /** The key must be a GUID, so a value cannot alter the resource path. */
+  private resourceUrl(division: number, resource: string, key?: string): URL {
+    const guidKey = key ? `(guid'${z.guid().parse(key)}')` : "";
+    return new URL(`/api/v1/${division}/${resource}${guidKey}`, this.origin);
+  }
   private url(division: number, read: ReadPlan): URL {
-    const key = read.key ? `(guid'${z.guid().parse(read.key)}')` : "";
-    const url = new URL(`/api/v1/${division}/${read.resource}${key}`, this.origin);
+    const url = this.resourceUrl(division, read.resource, read.key);
     url.searchParams.set("$select", read.select);
     if (read.filter) url.searchParams.set("$filter", read.filter);
     if (read.orderBy) url.searchParams.set("$orderby", read.orderBy);
@@ -91,6 +96,54 @@ export class ExactSource {
     const result = rowsEnvelope(await this.get(url, token, signal));
     if (result.rows.length !== 1 || result.next) throw new ServiceError("denied", "This company is not available to this personal Exact connection.", 403);
     return result.rows[0];
+  }
+  async salesJournals(division: number, token: string, signal: AbortSignal): Promise<unknown[]> {
+    const url = this.url(division, { resource: "financial/Journals", select: "Code,Description,IsBlocked", filter: "Type eq 20" });
+    const page = rowsEnvelope(await this.get(url, token, signal));
+    // Choosing from a partial list could pick the wrong journal, so a long list asks the person instead.
+    if (page.next) throw new ServiceError("invalid_input", "This company has many sales journals. Supply the journal as journalCode.", 400);
+    return page.rows;
+  }
+  /**
+   * Sends one change. sendBy is the latest start time that still leaves room for Exact's answer within the request,
+   * so a change is never cut off by the request deadline after Exact may have acted. beforeSend runs last, after
+   * any wait for the shared slot, so a disconnect during that wait still stops the change.
+   */
+  async change(division: number, request: ChangeRequest, token: string, signal: AbortSignal, sendBy: number,
+    beforeSend: () => Promise<unknown>): Promise<unknown> {
+    const url = this.resourceUrl(division, request.resource, request.key);
+    // Track how far the send got, so no failure after Exact may have acted is reported as safe to retry.
+    let sent = false; let answered = false; let result: unknown; let refusal: ServiceError | undefined;
+    try {
+      await this.request(async (active) => {
+        if (Date.now() > sendBy) throw new ServiceError("limited", "Not enough time was left to send this change safely. Ask again.", 429);
+        await beforeSend();
+        let response: Response;
+        try {
+          response = await this.fetcher(url, { method: request.method, redirect: "error", signal: active,
+            body: JSON.stringify(request.body), headers: { Authorization: `Bearer ${token}`, Accept: "application/json",
+              "Content-Type": "application/json" } });
+        } catch (error) {
+          // Budget and cooldown checks refuse before anything is sent; any other failure may follow a send.
+          if (!(error instanceof ServiceError && error.code !== "unavailable")) sent = true;
+          throw error;
+        }
+        sent = true;
+        try { result = await changeResponse(response); answered = true; } catch (error) {
+          if (error instanceof ServiceError && error.code !== "unavailable") refusal = error;
+          throw error;
+        }
+      }, signal);
+      return result;
+    } catch (error) {
+      if (answered) return result; // Exact acted; only shared bookkeeping failed afterwards.
+      if (refusal) throw refusal; // Exact refused, so nothing changed.
+      if (!sent) { // Nothing reached Exact, so say so: the assistant may then safely ask again.
+        if (error instanceof ServiceError) throw new ServiceError(error.code, `${error.message} Nothing was changed.`, error.status, error.detail);
+        throw new ServiceError("unavailable", "The change could not be sent. Nothing was changed.");
+      }
+      throw new ServiceError("unavailable", "The change may or may not have been made in Exact. Check Exact before trying again.", 503, "change:unknown");
+    }
   }
   async read(query: Query, division: number, token: string, signal: AbortSignal, continuation?: string) {
     const read = plan(query);

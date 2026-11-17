@@ -6,9 +6,9 @@ Include the affected revision, impact, and sanitized reproduction steps.
 
 ## Hosted service boundary
 
-The service has four fixed read operations.
-The hosted tool contract permits business GET requests only.
-An Exact-enforced read-only app scope has not been established.
+The service has five fixed read operations and three fixed change operations.
+Changes are limited to creating customers, updating customer details, and creating unprocessed sales invoices.
+Exact's own permission check applies to each change. A change is sent once and never retried.
 Review source scopes and consent separately; Exact user and app permissions remain authoritative.
 The service cannot accept an arbitrary URL, resource, HTTP method, field list, or OData filter.
 Source tokens are not valid MCP access tokens.

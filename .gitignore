@@ -5,6 +5,7 @@ node_modules/
 *.pfx
 scg-exact-config*.json
 production-config*.json
+exact-mcp-config*.json
 dist/
 *.tsbuildinfo
 .env
@@ -14,3 +15,6 @@ dist/
 # mcp-publisher login writes these auth tokens; never commit them
 .mcpregistry_github_token
 .mcpregistry_registry_token
+
+# Copilot packages carry a deployment host name and registration ID
+*.zip

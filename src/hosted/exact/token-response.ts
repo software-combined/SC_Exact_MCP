@@ -23,10 +23,10 @@ export async function tokenResponse(response: Response): Promise<SourceTokens> {
     // Exact answers a stale or unknown refresh token with invalid_request, not only invalid_grant.
     if (error.success) throw new ExchangeRejected("reauth_required", "Exact rejected the sign-in or refresh grant. Reconnect.", 401,
       error.data.error === "invalid_grant" || error.data.error === "invalid_request");
-    throw new ServiceError("reauth_required", "Exact returned an unrecognized credential outcome. Contact Software Combined IT.", 401);
+    throw new ServiceError("reauth_required", "Exact returned an unrecognized credential outcome. Contact your IT team.", 401);
   }
   const parsed = schema.safeParse(await jsonResponse(response, 40_000));
-  if (!parsed.success) throw new ServiceError("reauth_required", "Exact returned invalid credentials. Contact Software Combined IT.", 401);
+  if (!parsed.success) throw new ServiceError("reauth_required", "Exact returned invalid credentials. Contact your IT team.", 401);
   const issuedAt = Date.now();
   return { accessToken: parsed.data.access_token, refreshToken: parsed.data.refresh_token,
     issuedAt, expiresAt: issuedAt + parsed.data.expires_in * 1000 };

@@ -1,13 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Isolated EU production prerequisites for SCG Exact MCP with independent private egress in two zones.
+Description: Isolated production prerequisites for SCG Exact MCP with independent private egress in two zones.
 Parameters:
   Hostname: { Type: String, AllowedPattern: '^[a-z0-9.-]+$', Description: Approved production hostname }
   HostedZoneId: { Type: 'AWS::Route53::HostedZone::Id' }
-Rules:
-  ApprovedEuropeOnly:
-    Assertions:
-      - Assert: !Or [!Equals [!Ref 'AWS::Region', eu-central-1], !Equals [!Ref 'AWS::Region', eu-west-1]]
-        AssertDescription: This production foundation may run only in Frankfurt or Ireland.
 Resources:
   Vpc:
     Type: AWS::EC2::VPC

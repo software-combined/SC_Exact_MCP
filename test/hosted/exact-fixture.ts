@@ -8,9 +8,10 @@ import { Budgets, type Limits } from "../../src/hosted/runtime/budgets.js";
 import { Cursors } from "../../src/hosted/runtime/cursors.js";
 import { Accounting } from "../../src/hosted/runtime/accounting.js";
 import { SourceSlot } from "../../src/hosted/runtime/source-slot.js";
+import { Changes } from "../../src/hosted/runtime/changes.js";
 
 
-import { USER_A, companyRow, customerRow, invoiceRow, receivableRow } from "./records.js";
+import { USER_A, NEW_RECORD, companyRow, customerRow, invoiceRow, itemRow, receivableRow } from "./records.js";
 export * from "./records.js";
 
 export class TestCipher implements CredentialCipher {
@@ -35,12 +36,13 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
   appCallsPerMinute: 1000, divisionCallsPerMinute: 1000, appCallsPerDay: 10_000, divisionCallsPerDay: 10_000 }) {
   const store = new MemoryStore();
   const cipher = new TestCipher();
-  const calls: { method: string; path: string; query: URLSearchParams; authorization?: string }[] = [];
+  const calls: { method: string; path: string; query: URLSearchParams; authorization?: string; body?: unknown }[] = [];
   const access = new Map<string, string>(); const refresh = new Map<string, string>();
   const codes = new Map<string, string>();
   const fake = { user: USER_A, currentDivision: 123456, denyDivision: false, tokenStatus: 200, tokenError: "invalid_grant",
     tokenDelay: 0, responseOverride: undefined as unknown, next: undefined as string | undefined, rowId: undefined as string | undefined,
-    readBarrier: undefined as Promise<void> | undefined };
+    readBarrier: undefined as Promise<void> | undefined, journals: [{ Code: "70", Description: "Sales", IsBlocked: false }] as unknown[],
+    refuseChange: undefined as string | undefined, failChange: false, journalsNext: false };
   const exactServer = createServer((req, res) => { void (async () => {
     const url = new URL(req.url!, "http://localhost");
     calls.push({ method: req.method!, path: url.pathname, query: url.searchParams, authorization: req.headers.authorization });
@@ -69,6 +71,18 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
     const user = access.get((req.headers.authorization ?? "").slice(7));
     if (!user) return send({ error: "unauthorized" }, 401);
     if (url.pathname === "/api/v1/current/Me") return send({ d: [{ UserID: user, CurrentDivision: fake.currentDivision, FullName: "Fictional user" }] });
+    if (req.method === "POST" || req.method === "PUT") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk);
+      calls[calls.length - 1].body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      if (fake.failChange) return send({ error: "fictional outage" }, 500);
+      if (fake.refuseChange) return send({ error: { code: "", message: { lang: "", value: fake.refuseChange } } }, 400);
+      if (req.method === "PUT") { res.writeHead(204); return res.end(); }
+      return send({ d: url.pathname.endsWith("/SalesInvoices") ? { InvoiceID: NEW_RECORD, InvoiceNumber: 20260002 } :
+        { ID: NEW_RECORD, Code: "             C0002" } }, 201);
+    }
+    if (url.pathname.endsWith("/financial/Journals")) return send({ d: { results: fake.journals, ...(fake.journalsNext ? { __next: `${url.href}&$skiptoken=1` } : {}) } });
+    if (url.pathname.endsWith("/logistics/Items")) return send({ d: [itemRow] });
     if (fake.readBarrier) await fake.readBarrier;
     if (fake.denyDivision && url.pathname.includes("/123456/")) return send({ error: "forbidden" }, 403);
     if (fake.responseOverride !== undefined) return send(fake.responseOverride);
@@ -87,6 +101,7 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
     budgets.fetcher(), exactOrigin, (read, signal) => slot.run(read, signal), () => budgets.exchangeFetcher());
   const connections = new Connections(store, cipher, source);
   const accounting = new Accounting(connections, budgets, new Cursors(store, source.config.appId, "nl"));
+  const changes = new Changes(connections, budgets);
   return { exactOrigin, exactServer, calls, fake, store, cipher, source, connections, budgets,
-    accounting, codes, refresh, access, close: async () => close(exactServer) };
+    accounting, changes, codes, refresh, access, close: async () => close(exactServer) };
 }

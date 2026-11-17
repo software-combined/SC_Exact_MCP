@@ -1,125 +1,121 @@
 # Staff guide
 
-The service is not ready for wider staff use.
-IT can approve a guided pilot through one checked AI app and workspace.
-IT will provide that connection or published agent after its required checks pass.
-Read the [security questions](FAQ.md) before you connect.
+Use this guide to connect your AI (artificial intelligence) assistant to Exact Online and ask your first question.
+It takes about 5 minutes. You do not install anything.
 
-## Guided pilot handover
+The service is in a guided pilot (a first, limited trial). Use it only when Software Combined IT has made it available to you.
+Read the [security questions](FAQ.md) if you want to know how your data is handled.
 
-IT confirms the approved AI app, workspace, company scope, and support contact.
-The pilot uses personal Exact sign-in and the read-only operations below.
-It can help verify access for a second person before wider release.
+## Before you start
 
-1. Use only the connection and company scope that IT approves.
-2. Complete the personal sign-in steps below.
-3. Ask which Exact companies you can open.
-4. Check that the returned companies match your expected access.
-5. Try one approved customer or invoice lookup.
-6. Send IT the request ID and outcome if a check fails.
+You need:
 
-Do not send financial rows, passwords, tokens, or screenshots with private data in public reports.
-An approved pilot in one AI app does not qualify another app.
+- your own Exact Online login, with access to the companies you work with;
+- Microsoft 365 Copilot with the SCG Exact agent, which is the pilot assistant. Claude and ChatGPT are not yet cleared.
 
-## Before you connect
+Clearing one assistant does not clear another. Use only an assistant that IT has confirmed for you.
 
-You need an approved AI workspace and your own Exact account.
-You do not need Node.js, Docker, AWS access, or a local software installation.
-IT configures the connection and application settings.
-Never copy a password, token, or application secret into an AI chat.
-
-The service reads companies, customers, sales invoices, and current receivables.
-Receivables are unpaid customer amounts.
-It cannot create, update, send, book, or delete business records.
-Your current Exact permissions determine what you can read.
-
-## Claude
-
-After IT enables the approved connector:
-
-1. Open Claude in the approved workspace.
-2. Open **Customize**, then **Connectors**.
-3. Select the approved SCG Exact connector.
-4. Select **Connect**.
-5. Complete the personal sign-in steps below.
-6. Enable the connector in the conversation.
-
-Workspace controls can change which options appear.
-IT follows the [Claude connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
-
-## ChatGPT
-
-After IT enables the approved connection:
-
-1. Open ChatGPT in the approved workspace.
-2. Open the approved SCG Exact plugin or connector.
-3. Select its connection option.
-4. Complete the personal sign-in steps below.
-5. Select SCG Exact in a new conversation.
-
-The labels and available connection options depend on workspace settings.
-IT follows the [official OpenAI connection guide](https://developers.openai.com/apps-sdk/deploy/connect-chatgpt).
-Staff should not create another custom server or enter application credentials.
+You do not need any passwords, keys or addresses from IT.
+Never paste a password, secret or token (a digital key that gives access) into an AI chat.
 
 ## Microsoft 365 Copilot
 
-After IT publishes the approved agent:
+1. Open Microsoft 365 Copilot at <https://m365.cloud.microsoft/chat>.
+2. Select **Agents**, then **More agents**.
+3. Search for **SCG Exact**, select it, then select **Add**.
+   If you cannot find it, IT has not yet made it available to you.
+4. In the SCG Exact chat, ask: "Which Exact companies can I open?"
+5. Copilot asks to connect to SCG Exact. Select **Confirm**.
+6. Select **Sign in to SCG Exact**. Copilot opens the sign-in page in a separate window. This is normal for Copilot.
+7. Follow [Sign in to Exact](#sign-in-to-exact) below.
 
-1. Open the SCG Exact agent shared by IT.
-2. Start a conversation with that agent.
-3. Select the personal connection when prompted.
-4. Complete the personal sign-in steps below.
-5. Continue in the same agent.
+When the sign-in window closes, Copilot answers your question.
+Next time, open SCG Exact from **Agents** in the left menu.
 
-IT selects the approved setup route in the [hosting guide](HOSTING.md#register-three-ai-clients).
-Staff do not paste a server URL into ordinary Copilot chat.
+## Claude
 
-## Personal sign-in
+Not yet cleared for staff use. Use it only after IT confirms it is ready.
 
-1. Select **Connect personal Exact account**.
-2. Sign in to Exact with your own account.
-3. Review the Exact consent request.
-4. Check the Exact user shown on the SCG confirmation page.
-5. If the user is correct, confirm that user and the named AI client.
+IT adds SCG Exact as an organisation connector first.
 
-If the user is wrong, cancel the connection and ask IT to help you switch accounts.
-Do not confirm another person's Exact account.
+1. In Claude, open **Settings**, then **Connectors**.
+2. Find **SCG Exact** and select **Connect**.
+3. Follow [Sign in to Exact](#sign-in-to-exact) below.
+4. In a new chat, check that SCG Exact is switched on in the tools menu.
 
-Each AI client asks for its own consent.
-Your clients share your personal Exact connection and request limits.
-Another person's connection is never a fallback.
+## ChatGPT
 
-## Ask a question
+Not yet cleared for staff use. Use it only after IT confirms it is ready.
 
-Start with a company question:
+IT adds SCG Exact to the workspace first.
 
-> Which companies can I open in Exact?
+1. In ChatGPT, open the SCG Exact connector that IT shared.
+2. Select **Connect**.
+3. Follow [Sign in to Exact](#sign-in-to-exact) below.
+4. In a new chat, select SCG Exact from the tools menu.
 
-Then use the company name in a specific request:
+Menu names can differ slightly between workspaces. Ask IT if you cannot find them.
 
-> Find customer C001 in the company I selected.
+## Sign in to Exact
+
+You do this once for each AI assistant.
+
+1. On the **Connect Exact Online** page, select **Continue to Exact**.
+2. Sign in to Exact with your own account. Your password goes only to Exact.
+3. If Exact asks you to grant access, approve it.
+4. On the **Allow access** page, check the name after "Signed in to Exact as".
+5. If it is your name, select **Allow access**.
+
+If it is not your name, close the window and contact Software Combined IT. Never approve another person's Exact account.
+
+## Ask questions
+
+Start by finding your companies, then ask about one company at a time:
+
+> Which Exact companies can I open?
 >
-> Show sales invoice 20260001 in that company.
+> Find the customer named Fictional Trading in company 123456.
 >
-> Show its current overdue receivables due before 31 January 2026.
+> Show sales invoice 20260001 in company 123456.
+>
+> Which receivables in company 123456 are overdue?
 
-Check the returned company, currency, and source time.
-If the result is partial, ask for the next page with the same filters.
-Pages can change while you read them.
-A page is not a complete financial total or a historical balance.
+Check three things in every answer: the company, the currency, and the time of the lookup.
 
-## If something fails
+- Long lists come one page at a time. Ask for "the next page" to see more.
+- A page is not a complete total. Receivables are what customers owe now, not on a past date.
+- The assistant can make mistakes. For important decisions, check the figures in Exact.
 
-| Message or symptom | Next step |
+## Make changes
+
+The assistant can also create a customer, change a customer's details, and create a draft sales invoice:
+
+> Create a customer named Fictional Trading in company 123456, email info@example.com.
+>
+> Draft a sales invoice in company 123456 for Fictional Trading: 2 hours of consulting.
+
+Depending on how your assistant's tool permissions are set, it may ask you to confirm a change first.
+After a change, the assistant names the company and the record it changed. Check it in Exact.
+If a change fails or you get no clear answer, it may still have been made. Check Exact before you ask again.
+
+You can change only what your own Exact account is allowed to change.
+A draft sales invoice is not booked or sent. Check it and process it in Exact yourself.
+The assistant cannot delete records, book entries, send invoices or make payments.
+
+## If something goes wrong
+
+Every error page shows a **Reference**. Send that reference to IT. Do not send screenshots that show financial data.
+
+| What you see | What to do |
 | --- | --- |
-| Connection is missing | Ask IT whether the service and your workspace are approved. |
-| Exact denies access | Check your company and Exact permissions with IT. |
-| Sign-in expired | Start the connection again. |
-| Two requests are running | Wait for them to finish, then retry. |
-| Source-call budget or cooldown | Wait for the stated window, then narrow the request. |
-| Cursor expired or query changed | Start the query again with the intended company and filters. |
-| Credential exchange is uncertain | Stop reconnect attempts and give IT the request ID. |
+| You cannot find SCG Exact | Ask IT to make it available to you. |
+| "Sign-in could not finish" | Close the window and start again from your AI assistant. If it fails again, stop and send the reference to IT. |
+| The assistant asks you to sign in again | Sign in again. Your saved connection expired or was reset. If IT reset all connections, everyone signs in again. |
+| Exact denies access to a company | Your Exact account cannot open that company. Ask your Exact administrator. |
+| A message about a limit or a retry delay | Wait for the time the message gives, then ask a narrower question. If it gives no time, ask IT. |
+| The query changed, or a page of results has expired | Ask the question again from the start. |
 
-To remove one AI client, use its disconnect option.
-To disconnect the shared Exact connection, ask IT for the approved connection reset.
-That reset requires all AI clients to authorize again.
+## Disconnect
+
+To remove one AI assistant, use that assistant's own disconnect option. This step does not guarantee that all of your service access is removed.
+Removing SCG Exact from an assistant may not stop all access. To stop all access, or if you think someone else used your access, tell IT straight away.

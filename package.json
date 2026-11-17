@@ -23,7 +23,10 @@
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:loc": "node scripts/check-loc.mjs",
     "verify:infra": "node scripts/verify-infra.mjs",
-    "verify": "npm run check:architecture && npm run check:loc && npm run typecheck && npm test && npm run build && npm audit --omit=dev --audit-level=high"
+    "verify": "npm run check:architecture && npm run check:loc && npm run typecheck && npm test && npm run build && npm audit --omit=dev --audit-level=high",
+    "deploy": "node scripts/deploy.mjs",
+    "copy:credential": "node scripts/copy-client-credential.mjs",
+    "copilot:package": "node scripts/build-copilot-package.mjs"
   },
   "keywords": [
     "mcp",

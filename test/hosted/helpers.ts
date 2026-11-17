@@ -5,6 +5,7 @@ import { Broker } from "../../src/hosted/oauth/broker.js";
 import { Connections } from "../../src/hosted/runtime/connections.js";
 import { Cursors } from "../../src/hosted/runtime/cursors.js";
 import { Accounting } from "../../src/hosted/runtime/accounting.js";
+import { Changes } from "../../src/hosted/runtime/changes.js";
 import type { Limits } from "../../src/hosted/runtime/budgets.js";
 import { hostedApp, type RequestLog } from "../../src/hosted/transport/app.js";
 import { exactFixture, listen, close, reservePort } from "./exact-fixture.js";
@@ -14,7 +15,7 @@ export async function harness(limits?: Limits) {
   const port = await reservePort();
   const origin = `http://127.0.0.1:${port}`;
   const base = await exactFixture(`${origin}/exact/callback`, limits);
-  const { store, cipher, source, connections, budgets, accounting } = base;
+  const { store, cipher, source, connections, budgets, accounting, changes } = base;
   const { privateKey } = await generateKeyPair("RS256", { extractable: true });
   const key = await exportJWK(privateKey);
   const config: BrokerConfig = { origin, jwks: { keys: [{ ...key, kid: "fixture-key", alg: "RS256", use: "sig" }] },
@@ -25,7 +26,7 @@ export async function harness(limits?: Limits) {
   const signIns = budgets.signIns();
   const broker = new Broker(config, store, connections, signIns);
   const logs: RequestLog[] = [];
-  let server = hostedApp(broker, accounting, store, (record) => logs.push(record));
+  let server = hostedApp(broker, accounting, changes, store, (record) => logs.push(record));
   await listen(server, port);
   return { ...base, origin, server, broker, config, logs,
     restart: async () => {
@@ -33,7 +34,8 @@ export async function harness(limits?: Limits) {
       const nextConnections = new Connections(store, cipher, source);
       const nextAccounting = new Accounting(nextConnections, budgets, new Cursors(store, source.config.appId, "nl"));
       const nextBroker = new Broker(config, store, nextConnections, signIns);
-      server = hostedApp(nextBroker, nextAccounting, store, (record) => logs.push(record));
+      const nextChanges = new Changes(nextConnections, budgets);
+      server = hostedApp(nextBroker, nextAccounting, nextChanges, store, (record) => logs.push(record));
       await listen(server, port);
       return nextBroker;
     },
