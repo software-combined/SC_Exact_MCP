@@ -42,7 +42,8 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
   const fake = { user: USER_A, currentDivision: 123456, denyDivision: false, tokenStatus: 200, tokenError: "invalid_grant",
     tokenDelay: 0, responseOverride: undefined as unknown, next: undefined as string | undefined, rowId: undefined as string | undefined,
     readBarrier: undefined as Promise<void> | undefined, journals: [{ Code: "70", Description: "Sales", IsBlocked: false }] as unknown[],
-    refuseChange: undefined as string | undefined, failChange: false, journalsNext: false };
+    refuseChange: undefined as string | undefined, failChange: false, journalsNext: false, invoicesNext: false,
+    customers: undefined as unknown[] | undefined, items: undefined as unknown[] | undefined };
   const exactServer = createServer((req, res) => { void (async () => {
     const url = new URL(req.url!, "http://localhost");
     calls.push({ method: req.method!, path: url.pathname, query: url.searchParams, authorization: req.headers.authorization });
@@ -82,14 +83,21 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
         { ID: NEW_RECORD, Code: "             C0002" } }, 201);
     }
     if (url.pathname.endsWith("/financial/Journals")) return send({ d: { results: fake.journals, ...(fake.journalsNext ? { __next: `${url.href}&$skiptoken=1` } : {}) } });
-    if (url.pathname.endsWith("/logistics/Items")) return send({ d: [itemRow] });
+    // Like Exact, $top returns at most that many rows as a plain array.
+    const top = Number(url.searchParams.get("$top")) || undefined;
+    if (url.pathname.endsWith("/logistics/Items")) return send({ d: (fake.items ?? [itemRow]).slice(0, top) });
     if (fake.readBarrier) await fake.readBarrier;
     if (fake.denyDivision && url.pathname.includes("/123456/")) return send({ error: "forbidden" }, 403);
     if (fake.responseOverride !== undefined) return send(fake.responseOverride);
     if (url.pathname.endsWith("/system/Divisions")) return send({ d: [companyRow] });
     const id = fake.rowId; const customer = id ? { ...customerRow, ID: id } : customerRow;
     const invoice = id ? { ...invoiceRow, InvoiceID: id } : invoiceRow; const receivable = id ? { ...receivableRow, AccountId: id } : receivableRow;
-    if (url.pathname.endsWith("/crm/Accounts")) return send({ d: { results: [customer], ...(fake.next ? { __next: fake.next } : {}) } });
+    if (url.pathname.endsWith("/crm/Accounts") && top) return send({ d: { results: (fake.customers ?? [customer]).slice(0, top),
+      ...(fake.next ? { __next: fake.next } : {}) } });
+    if (url.pathname.endsWith("/crm/Accounts")) return send({ d: { results: fake.customers ?? [customer], ...(fake.next ? { __next: fake.next } : {}) } });
+    if (url.pathname.includes("/salesinvoice/SalesInvoices") && fake.invoicesNext) {
+      return send({ d: { results: [invoice], __next: `${url.pathname}${url.search}&$skiptoken=2` } });
+    }
     if (url.pathname.includes("/salesinvoice/SalesInvoices")) return send({ d: url.pathname.includes("guid'") ? invoice : [invoice] });
     if (url.pathname.endsWith("/read/financial/ReceivablesList")) return send({ d: [receivable] });
     return send({ error: "unknown" }, 404);

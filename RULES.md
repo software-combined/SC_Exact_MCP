@@ -2,8 +2,11 @@
 
 Owner: Software Combined IT. Status: source implementation; production deployment requires current verification.
 
-Hosted tools discover companies, search customers and sales items, look up sales
-invoices, and read receivables. Three change tools create a customer, update
+Hosted tools discover companies, list or search customers and sales items, list
+or look up sales invoices, and read receivables. Reads need only the company.
+A customer or item name can replace its ID. A name that matches no record or
+several records stops the tool and lists the candidates; no change is sent.
+A change needs the full name or the code. A partial name is offered back, not changed. Three change tools create a customer, update
 customer details, and create an unprocessed sales invoice. No tool deletes,
 books, sends, or pays. Exact's own permission decides each change; each AI
 client's tool-permission settings decide whether it asks first. A change request

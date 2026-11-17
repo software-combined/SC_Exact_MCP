@@ -36,17 +36,18 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | You can look up | Example question |
 | --- | --- |
 | Companies | "Which Exact companies can I open?" |
-| Customers | "Find the customer named Fictional Trading in company 123456." |
-| Sales invoices | "Show sales invoice 20260001 in company 123456." |
-| Receivables (money customers still owe) | "Which receivables in company 123456 are overdue?" |
-| Sales items | "Find the item for consulting hours in company 123456." |
+| Customers | "List the first 5 customers in company 123456." or "Find Fictional Trading in company 123456." |
+| Sales invoices | "Show the latest invoices for Fictional Trading in company 123456." |
+| Receivables (money customers still owe) | "Which receivables in company 123456 are more than 30 days overdue?" |
+| Sales items | "List the sales items in company 123456." |
 
 | You can change | Example request |
 | --- | --- |
 | Create a customer | "Create a customer named Fictional Trading in company 123456." |
-| Update a customer | "Change the phone number of customer C001 in company 123456." |
+| Update a customer | "Change the phone number of Fictional Trading in company 123456." |
 | Draft a sales invoice | "Draft an invoice for Fictional Trading in company 123456: 2 consulting hours." |
 
+Only the company is required. Names work instead of IDs. If a name matches several records, the assistant asks which one.
 Each answer names the company, the currency and the time of the lookup.
 Long lists come back one page at a time. A page is not a complete total. Receivables are current balances, not past ones.
 

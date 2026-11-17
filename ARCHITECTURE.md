@@ -14,6 +14,9 @@ The runtime composes these parts; MCP only advertises and executes contracts.
 The canonical schemas are the tool contract. The Exact adapter alone owns fixed
 routes and projections. There is no generic provider framework or generic HTTP
 escape hatch. Keyed invoice reads use a validated GUID and fixed resource.
+A customer or item name resolves to one ID through one fixed lookup of at most 11 rows. More than 10 matches picks no record.
+A change needs one record with that full name or code. A read also accepts one partial match.
+Any other name stops the tool and lists the candidates.
 
 Connection state is keyed by Exact application, region, and immutable Exact
 user ID. Client-specific grants point at that shared connection. Generation

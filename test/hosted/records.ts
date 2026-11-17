@@ -10,3 +10,6 @@ export const invoiceRow = { InvoiceID: INVOICE, InvoiceNumber: 20260001, Invoice
 export const receivableRow = { HID: 123, AccountId: USER_B, AccountCode: "C001", AccountName: "Fictional customer",
   InvoiceNumber: 20260001, InvoiceDate: "/Date(1767225600000)/", DueDate: null, CurrencyCode: "EUR", Amount: 125.25 };
 export const itemRow = { ID: ITEM, Code: "CONSULT", Description: "Fictional consulting hour", StandardSalesPrice: 95 };
+export const CUSTOMER_TWO = "66666666-6666-4666-8666-666666666666";
+export const customerTwoRow = { ID: CUSTOMER_TWO, Code: "             C002", Name: "Fictional customer two" };
+export const customerThreeRow = { ID: "77777777-7777-4777-8777-777777777777", Code: "C003", Name: "Other fictional client" };

@@ -44,7 +44,7 @@ describe("fixed reads and source integrity", () => {
     expect(result).not.toHaveProperty("total");
     expect(h.calls.find((v) => v.path.endsWith("ReceivablesList"))?.query.get("$filter")).toBe("DueDate lt datetime'2026-01-31T00:00:00'");
   });
-  it.each([{ division: -1, name: "ok" }, { division: 123456 }, { division: 123456, name: "ok", code: "C001" },
+  it.each([{ division: -1, name: "ok" }, { name: "ok" }, { division: 123456, limit: 0 }, { division: 123456, limit: 101 },
     { division: 123456, name: "ok", select: "*" }, { division: 123456, name: "ok", cursor: "provider-skiptoken" }])(
     "rejects invalid arguments before protected reads: %j", async (input) => {
       const h = await setup(); const before = h.calls.length;

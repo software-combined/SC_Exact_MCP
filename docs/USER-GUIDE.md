@@ -75,11 +75,18 @@ Start by finding your companies, then ask about one company at a time:
 
 > Which Exact companies can I open?
 >
-> Find the customer named Fictional Trading in company 123456.
+> List the first 5 customers in company 123456.
+>
+> Find customers in Amsterdam in company 123456.
+>
+> Show the latest sales invoices for Fictional Trading in company 123456.
 >
 > Show sales invoice 20260001 in company 123456.
 >
-> Which receivables in company 123456 are overdue?
+> Which receivables for Fictional Trading are more than 30 days overdue in company 123456?
+
+You need to give only the company. Give a name, code, city or date if you know it. You do not need an ID.
+If a name matches more than one customer or item, the assistant shows the matches. Choose one and ask again.
 
 Check three things in every answer: the company, the currency, and the time of the lookup.
 
@@ -94,8 +101,12 @@ The assistant can also create a customer, change a customer's details, and creat
 > Create a customer named Fictional Trading in company 123456, email info@example.com.
 >
 > Draft a sales invoice in company 123456 for Fictional Trading: 2 hours of consulting.
+>
+> Change the phone number of Fictional Trading in company 123456 to 010 123 4567.
 
 Depending on how your assistant's tool permissions are set, it may ask you to confirm a change first.
+For a change, give the full name or the code. If you give part of a name, the assistant asks which record you mean. Nothing is changed.
+If a name matches more than one record, nothing is changed. The assistant shows the matches. Choose one and ask again.
 After a change, the assistant names the company and the record it changed. Check it in Exact.
 If a change fails or you get no clear answer, it may still have been made. Check Exact before you ask again.
 
