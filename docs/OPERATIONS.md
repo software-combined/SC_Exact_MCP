@@ -26,8 +26,11 @@ A customer or item name instead of an ID adds one lookup read of at most 11 rows
 A change can name at most 5 different items. If its lookups do not finish before the send cut-off, nothing is changed.
 A change uses a name only when it equals the full name or code of one record. A lookup reads at most 11 rows. If more than 10 match, it picks no record.
 A cursor for a named customer keeps the record that the name matched. A later page for a different record is refused.
-A `limit` shorter than Exact's page returns fewer rows. The next cursor reads the same Exact page again and returns the next rows.
-If a record is added or removed in that page between two calls, the next rows can skip or repeat one record. Ask again from the start for a fixed list.
+A `limit` shorter than Exact's page returns fewer rows. The cursor keeps the last record returned.
+The next call reads the same Exact page again and returns the rows after that record.
+If that record is gone or its code changed, the call is refused with "The list changed while you were paging". Ask again from the start.
+The move to Exact's next page uses Exact's own continuation link. A list is not a snapshot.
+`overdueDays` counts days in the time zone of the Exact region, for example Amsterdam for `nl`. The `com` region counts UTC days.
 The service does not send Exact's `$top` for pages, because `$top` switches off Exact's paging.
 A required refresh can add one token exchange and one identity check.
 The service reserves both identity calls against minute and daily limits before token issuance.

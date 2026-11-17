@@ -1,4 +1,5 @@
 import { invoiceStatuses, type Query } from "../domain/contracts.js";
+import type { Region } from "../domain/identity.js";
 
 export interface ReadPlan {
   resource: "system/Divisions" | "crm/Accounts" | "salesinvoice/SalesInvoices" | "read/financial/ReceivablesList" |
@@ -23,11 +24,17 @@ function customerId(input: { customer?: string; customerId?: string }) {
   if (input.customer && !input.customerId) throw new Error("Resolve the customer name before planning the read.");
   return input.customerId;
 }
-function daysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+// Exact due dates are company dates. The European regions count days in their own time zone; "com" has no
+// single zone, so it counts UTC days.
+const zones: Record<Region, string> = { nl: "Europe/Amsterdam", be: "Europe/Brussels", de: "Europe/Berlin",
+  fr: "Europe/Paris", es: "Europe/Madrid", uk: "Europe/London", com: "UTC" };
+function daysAgo(days: number, region: Region): string {
+  // en-CA formats the date as YYYY-MM-DD, the form that Date.parse reads below.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: zones[region] }).format(new Date());
+  return new Date(Date.parse(`${today}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-export function plan(query: Query): ReadPlan {
+export function plan(query: Query, region: Region): ReadPlan {
   switch (query.operation) {
     case "company_discovery": return { resource: "system/Divisions", select: "Code,Description,Currency", orderBy: "Code" };
     case "customer_search": {
@@ -53,8 +60,8 @@ export function plan(query: Query): ReadPlan {
         query.input.description && contains(query.input.description, "Description")]) };
     case "receivables": {
       const input = query.input; const id = customerId(input);
-      // overdueDays N means at least N days past due: due before today minus N-1 days, in UTC.
-      const before = input.overdueBefore ?? (input.overdueDays ? daysAgo(input.overdueDays - 1) : undefined);
+      // overdueDays N means at least N days past due: due before today minus N-1 days, in the region's time zone.
+      const before = input.overdueBefore ?? (input.overdueDays ? daysAgo(input.overdueDays - 1, region) : undefined);
       return { resource: "read/financial/ReceivablesList",
         select: "HID,AccountId,AccountCode,AccountName,InvoiceNumber,InvoiceDate,DueDate,Amount,CurrencyCode",
         orderBy: "DueDate,HID", ...all([before && `DueDate lt datetime'${before}T00:00:00'`, id && guidFilter("AccountId", id)]) };
