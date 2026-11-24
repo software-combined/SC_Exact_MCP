@@ -16,9 +16,11 @@ export function sharedSettings(s) {
   need(typeof s.exactAppId === "string" && s.exactAppId.length > 0, "exactAppId is required.");
   need(typeof s.configFile === "string" && isAbsolute(s.configFile), "configFile must be an absolute path to the private configuration.");
   need(!resolve(s.configFile).startsWith(resolve(root) + sep), "configFile must be outside this repository, so it can never be committed.");
+  const copilotCatalogueChanges = s.copilotCatalogueChanges ?? false;
+  need(typeof copilotCatalogueChanges === "boolean", "copilotCatalogueChanges must be true or false.");
   const budgets = { appPerMinute: 30, divisionPerMinute: 10, appPerDay: 500, divisionPerDay: 200, ...s.budgets };
   need(budgets.appPerMinute >= 8 && budgets.appPerDay >= 8, "app budgets must be at least 8.");
-  return { ...s, tags: s.tags ?? {}, budgets };
+  return { ...s, tags: s.tags ?? {}, budgets, copilotCatalogueChanges };
 }
 
 /** Validates the AWS settings file and fills safe defaults. */
@@ -78,7 +80,8 @@ export function serviceParameters(s, out, imageUri) {
   return { VpcId: out.VpcId, VpcCidr: out.VpcCidr, PublicSubnets: out.PublicSubnets, PrivateSubnets: out.PrivateSubnets,
     CertificateArn: out.CertificateArn, Hostname: s.hostname, HostedZoneId: s.hostedZoneId, ImageUri: imageUri,
     ImageRepositoryArn: out.ImageRepositoryArn, ConfigSecretArn: out.ConfigSecretArn, ConfigKeyArn: out.ConfigKeyArn,
-    ExactAppId: s.exactAppId, AppCallsPerMinute: String(s.budgets.appPerMinute),
+    ExactAppId: s.exactAppId, CopilotCatalogueChanges: String(s.copilotCatalogueChanges ?? false),
+    AppCallsPerMinute: String(s.budgets.appPerMinute),
     DivisionCallsPerMinute: String(s.budgets.divisionPerMinute), AppCallsPerDay: String(s.budgets.appPerDay),
     DivisionCallsPerDay: String(s.budgets.divisionPerDay), TagOwner: s.tags.Owner ?? "not-set",
     TagDataClass: s.tags.DataClass ?? "not-set", TagRetentionClass: s.tags.RetentionClass ?? "not-set", TagReviewBy: s.tags.ReviewBy ?? "not-set" };

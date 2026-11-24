@@ -11,6 +11,7 @@ Start with the document for your task.
 | Data access, privacy, and how the service works | [Security questions](FAQ.md) |
 | Running your own copy in your own AWS account or Azure subscription | [Deploy your own copy](SELF-HOST.md) |
 | Operator setup and rollout | [Hosting guide](HOSTING.md) |
+| Finance reads and the named BoostU tools | [Exact catalogue](CATALOGUE.md) |
 | Errors, disconnect, and revoking all connections | [Operations guide](OPERATIONS.md) |
 | Local proof and remaining acceptance gates | [Qualification](QUALIFICATION.md) |
 | Behaviour and authority | [Rules](../RULES.md) |

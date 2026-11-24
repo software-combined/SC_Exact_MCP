@@ -16,7 +16,7 @@ The assistant looks up the answer in Exact through this service.
 Two rules never change:
 
 - You see and change only what your own Exact account allows. There is no shared login.
-- The service makes only three kinds of change: create a customer, update a customer's details, and create a draft sales invoice. It never deletes, books, sends or pays.
+- The default package includes basic customer changes and draft sales invoices. A separate Copilot package can expose the wider [Exact catalogue](docs/CATALOGUE.md).
 
 Software Combined Group (SCG) IT runs the service. The connection uses the Model Context Protocol (MCP). MCP is an open standard for linking AI assistants to other systems.
 
@@ -33,6 +33,9 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 
 ## What you can ask
 
+Finance reads require an updated server and Copilot package. Check the
+[qualification record](docs/QUALIFICATION.md) for live coverage.
+
 | You can look up | Example question |
 | --- | --- |
 | Companies | "Which Exact companies can I open?" |
@@ -40,6 +43,10 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | Sales invoices | "Show the latest invoices for Fictional Trading in company 123456." |
 | Receivables (money customers still owe) | "Which receivables in company 123456 are more than 30 days overdue?" |
 | Sales items | "List the sales items in company 123456." |
+| Suppliers and bank details | "Find Fictional Supply and show its registered bank account ending and BIC." |
+| Open payables and payment status | "Which supplier invoices are due this week? Which payments are selected?" |
+| Invoices, ledger and period close | "Show the lines for purchase invoice 42. Which journals are open for period 3?" |
+| Bank statement entries and assets | "Show the bank statement closing balances for period 3 and list active assets." |
 
 | You can change | Example request |
 | --- | --- |
@@ -47,9 +54,9 @@ Software Combined Group (SCG) IT runs the service. The connection uses the Model
 | Update a customer | "Change the phone number of Fictional Trading in company 123456." |
 | Draft a sales invoice | "Draft an invoice for Fictional Trading in company 123456: 2 consulting hours." |
 
-Only the company is required. Names work instead of IDs. If a name matches several records, the assistant asks which one.
+Start with the company. Some tools also need a date, period or record ID. The assistant can look up IDs from names or codes.
 Each answer names the company, the currency and the time of the lookup.
-Long lists come back one page at a time. A page is not a complete total. Receivables are current balances, not past ones.
+Long lists come back one page at a time. Each page shows its coverage. Receivables and payables show current outstanding items.
 
 ## Current status
 

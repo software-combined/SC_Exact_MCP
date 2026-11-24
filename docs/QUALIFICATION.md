@@ -3,6 +3,9 @@
 Owner: Software Combined IT. Source review date: 17/11/2026.
 Status: deployed to production; Microsoft 365 Copilot pilot passing for one person; second-person check, other AI clients and staff acceptance remain pending.
 
+The finance additions have local simulated coverage. Live qualification of the
+expanded catalogue, including the updated Copilot package, is pending.
+
 ## Local evidence
 
 Run `npm run verify` for the source contract, import boundaries, line limits,
@@ -26,33 +29,30 @@ Actual SDK transport tests and the dependency audit cover this change.
 `oidc-provider` is pinned at 9.15.0 for protocol and interaction handling.
 The repository does not implement OAuth security through a custom token shell.
 
-## Agent 57 build analysis
+## MCP server controls
 
 The outcome is bounded staff lookup through personal Exact permissions.
 Software Combined IT owns the service and credential effects.
 The hosted path coexists with the legacy CLI because existing local callers need it.
 It never imports the legacy broad catalogue.
 
-The service is deterministic and has no model, paid model call, or autonomous loop.
-Compatibility tier: T1 for business reads; the three change tools are bounded writes with the controls below.
-Applicable tool profiles are R, external untrusted content, and L, bounded result size.
+The service follows the MCP server method. It is deterministic and has no model,
+paid model call, or autonomous loop. Each tool uses a bounded request and result.
 Credential rotation also has harmful replay and interruption risks.
 Shared conditional exchange state handles those internal maintenance effects.
 
-K1 to K10 map to the typed schemas, fixed adapter, authenticated broker,
-safe errors, bounded pages, shared budgets, generation checks, metadata logs, and contract version.
-The named hosted tests verify their local enforcement.
+Hosted tests verify typed schemas, the fixed adapter, the authenticated broker,
+safe errors, bounded pages, shared budgets, generation checks and metadata logs.
 The [operations guide](OPERATIONS.md) owns numeric call, time, payload, and concurrency limits.
 
-Three business write tools exist: create customer, update customer, and create an unprocessed sales invoice.
-Their controls are fixed resources and fields, non-read-only tool markers for client permission settings,
-Exact's own permissions, and no automatic retry.
+The default tools can create or update a customer and create an unprocessed sales invoice.
+An explicitly configured Copilot registration can also access the named
+catalogue writes. The expanded grant requires consent. All writes use fixed
+resources and fields, client permission markers, Exact permissions and no automatic retry.
 Local tests cover the exact requests sent, Exact refusals, and an unknown outcome.
 They also prove that an unclear customer or item name sends no change.
-No send, book, pay, or delete operation exists. Reassess before adding one.
-Delegated-agent and broad-autonomy controls are inapplicable because the service contains neither capability.
-Reassess them before introducing a model or dynamic orchestration.
-Paid-operation allowance is zero because no paid AI (artificial intelligence), enrichment, or reveal call exists.
+Qualify the optional writes in a test company using the
+[Copilot change checks](CATALOGUE.md#copilot-changes).
 
 The shared table is needed for two replicas and rotating credentials.
 Process-local state cannot serialise independent tasks or survive a restart.
@@ -60,9 +60,8 @@ The app-wide gate protects code exchanges before source identity is known.
 Software Combined IT owns recovery and its app-wide reauthentication effect.
 Reassess the design if Exact provides a trustworthy identity before token exchange.
 
-Source-qualified, model-qualified, runtime-verified, and owner-accepted are separate states.
-Scripted local tests cannot establish model judgement or human acceptance.
-No blanket Agent 57 compliance claim is made for a deployed service.
+Source checks, deployed checks, client qualification and owner acceptance are
+separate gates.
 
 ## Live qualification runbook
 
@@ -76,7 +75,7 @@ Never record financial rows, source tokens, authorization codes, or raw error pa
 
 1. Verify the AWS target, operator identity, region, and approved production scope.
 2. Verify the deployed revision and immutable image digest.
-3. Read back HTTPS health, issuer metadata, resource metadata, and the eight tools.
+3. Read back HTTPS health, issuer metadata, resource metadata, and the tool list for the reviewed revision. Compare the Copilot package against the tools it uses.
 4. Confirm S256, exact callbacks, fixed audience, and disabled public registration.
 5. Sign in with the approved first test user through the dedicated MCP app.
 6. Confirm the displayed Exact user before client consent.
@@ -103,6 +102,15 @@ Never probe a live business write to prove read-only behaviour.
 Keep live negative probes below Exact's documented error limits.
 Do not revoke another app or change the existing test user's roles and company access.
 
+### Finance reads
+
+1. Confirm the finance tool names appear in the deployed service and the pilot package.
+2. Confirm a pre-upgrade grant requires reconnection. Sign in with the person's own Exact account and show the revised consent.
+3. Compare a ledger line, an asset, an open payable and a payment status with Exact.
+4. Compare a foreign-currency invoice line with its invoice and company currencies.
+5. Confirm that only the last four characters of the supplier bank number appear.
+6. Repeat with a second person. Check that Exact denies a known finance resource or company outside that person's access.
+
 ## Remaining gates
 
 One checked AI client can support an approved guided pilot while other clients remain unqualified.
@@ -112,6 +120,7 @@ Wider staff release requires that proof and owner acceptance.
 | Gate | Current status |
 | --- | --- |
 | Source checks and local simulated outcome | Implemented; rerun on the exact reviewed candidate. |
+| Finance tools and updated Copilot package | Local fixtures passed. Live Exact values, Copilot and second-person access checks remain pending. |
 | Foundation change set, network, certificate, and image repository | Owner verified. |
 | Runtime change set and task-role IAM (identity and access management) | Passed: two healthy tasks in two zones; task-role probe passed with fictional data. |
 | Deployed HTTPS service and current health | Passed: health, issuer metadata, S256 only, no public registration. |

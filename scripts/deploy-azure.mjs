@@ -28,6 +28,7 @@ export function readSettings(text) {
 /** Parameters for infra/azure/main.bicep, built from the settings and this run's values. */
 export function templateParameters(s, { operatorObjectId, image = "", certificateId = "" }) {
   return { prefix: s.prefix, hostname: s.hostname, exactAppId: s.exactAppId,
+    copilotCatalogueChanges: s.copilotCatalogueChanges ?? false,
     appCallsPerMinute: s.budgets.appPerMinute, divisionCallsPerMinute: s.budgets.divisionPerMinute,
     appCallsPerDay: s.budgets.appPerDay, divisionCallsPerDay: s.budgets.divisionPerDay,
     tags: { ...baseTags, ...s.tags }, operatorObjectId, image, certificateId };
