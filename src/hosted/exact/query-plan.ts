@@ -8,11 +8,12 @@ export interface ReadPlan {
   filter?: string;
   orderBy?: string;
   key?: string;
+  keyKind?: "currency" | "integer";
   /** Only for lookups that never page: Exact's $top switches off __next paging. */
   top?: number;
 }
 export type MatchKind = "customer" | "item";
-const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
+export const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const contains = (value: string, field: string) => `substringof(${literal(value)},${field})`;
 const guidFilter = (field: string, id: string) => `${field} eq guid'${id.toLowerCase()}'`;
 const all = (filters: (string | false | undefined)[]) => {

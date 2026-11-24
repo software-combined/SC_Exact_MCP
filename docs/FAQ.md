@@ -39,7 +39,14 @@ whether the results are complete.
 ## Can it change my accounts?
 
 It can make three kinds of change: create a customer, change a customer's details, and create a draft sales invoice.
-It cannot delete records, book entries, send invoices or make payments. The service enforces this list; no other change is possible through it.
+The optional Copilot change catalogue offers more Exact actions, including
+deleting records and booking or sending a sales invoice. Your Exact role and
+Copilot's confirmation apply. See [supported actions](CATALOGUE.md).
+
+Exact checks that your own account may make each change. Whether your AI assistant asks before a change depends on its tool-permission settings, as for any connected tool.
+The service sends each change once and never retries it on its own. If the connection drops during a change, you may get no answer at all. Check Exact before you ask again.
+
+A draft sales invoice is not booked or sent. A person checks and processes it in Exact.
 
 ## Who can see my information?
 

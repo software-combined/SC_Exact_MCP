@@ -25,7 +25,7 @@ function record(value: unknown): Record<string, unknown> {
 const wholeIdentifier = z.union([z.number().int().safe().nonnegative(), z.string().regex(/^\d+$/)]);
 const sourceIdentifier = (value: unknown) => String(wholeIdentifier.parse(value));
 
-function bankLastFour(value: unknown) {
+export function bankLastFour(value: unknown) {
   if (value == null) return null;
   const number = z.string().max(100).parse(value).replace(/[\s-]/g, "").toUpperCase();
   return /^[A-Z0-9]{5,}$/.test(number) ? number.slice(-4) : null;

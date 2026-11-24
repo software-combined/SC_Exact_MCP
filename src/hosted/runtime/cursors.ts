@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { ServiceError, type Principal, type StateStore } from "../domain/identity.js";
 import { projectionVersion, type Query } from "../domain/contracts.js";
+import type { CatalogReadQuery } from "../domain/catalogue/contracts.js";
 import { take } from "../storage/state.js";
 
 /**
@@ -10,15 +11,16 @@ import { take } from "../storage/state.js";
  */
 export interface Continuation { binding: string; next?: string; after?: string; record?: string; seen: string[] }
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+type CursorQuery = Query | CatalogReadQuery;
 export class Cursors {
   constructor(private store: StateStore, private app: string, private region: string) {}
-  private binding(principal: Principal, query: Query): string {
+  private binding(principal: Principal, query: CursorQuery): string {
     const { cursor: _cursor, ...input } = query.input;
     const sorted = Object.fromEntries(Object.entries(input).sort(([a], [b]) => a.localeCompare(b)));
     return hash(JSON.stringify({ app: this.app, subject: principal.subject, generation: principal.generation,
       region: this.region, operation: query.operation, input: sorted, projectionVersion }));
   }
-  async open(principal: Principal, query: Query): Promise<Continuation | undefined> {
+  async open(principal: Principal, query: CursorQuery): Promise<Continuation | undefined> {
     if (!query.input.cursor) return undefined;
     const key = `cursor:${this.app}:${query.input.cursor}`;
     const row = await this.store.read<{ payload: Continuation }>(key);
@@ -27,7 +29,7 @@ export class Cursors {
     }
     return take<Continuation>(this.store, key);
   }
-  async create(principal: Principal, query: Query, next: string | undefined, previous?: Continuation, after?: string,
+  async create(principal: Principal, query: CursorQuery, next: string | undefined, previous?: Continuation, after?: string,
     record?: string): Promise<string> {
     const digest = hash(`${next ?? ""}#${after ?? ""}`);
     const seen = previous?.seen ?? [];

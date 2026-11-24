@@ -8,8 +8,10 @@ Supplier bank reads confirm the supplier in that company and return only a maske
 account number. A payment status describes Exact's record of the payment.
 A customer or item name can replace its ID. A name that matches no record or
 several records stops the tool and lists the candidates.
-The existing change tools create or update a customer and create a draft sales invoice.
-Exact checks the person's permissions. The service sends each change once and never retries it.
+The default package can create or update a customer and create a draft sales invoice.
+An enabled Copilot client can also use named catalogue changes for supported Exact
+resources. Exact checks the person's permissions. Copilot handles interactive
+confirmation. The server checks the target and sends each change once.
 Personal Exact consent and current source permissions are the authority for every read. Pilot access follows
 approved source consent; the service never invents a tenant entitlement.
 Other integrations' app credentials and

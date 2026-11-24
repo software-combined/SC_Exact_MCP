@@ -16,7 +16,7 @@ The assistant looks up the answer in Exact through this service.
 Two rules never change:
 
 - You see and change only what your own Exact account allows. There is no shared login.
-- The service makes only three kinds of change: create a customer, update a customer's details, and create a draft sales invoice. It never deletes, books, sends or pays.
+- The default package includes basic customer changes and draft sales invoices. A separate Copilot package can expose the wider [Exact catalogue](docs/CATALOGUE.md).
 
 Software Combined Group (SCG) IT runs the service. The connection uses the Model Context Protocol (MCP). MCP is an open standard for linking AI assistants to other systems.
 

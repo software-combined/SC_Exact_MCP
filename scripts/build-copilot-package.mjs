@@ -36,12 +36,13 @@ Answer rules:
  * Copilot shows the sign-in card only for tools it already knows, so the list must be in the package:
  * with live discovery, a person who is not signed in sees no tools and is never asked to sign in.
  */
-export async function serviceTools(load = () => import("../dist/hosted/transport/mcp.js")) {
+export async function serviceTools(load = () => import("../dist/hosted/transport/mcp.js"), includeCatalogueChanges = false) {
   const { hostedMcp } = await load().catch((error) => {
     throw new Error(`Run npm run build first: the package lists the tools from the built service. (${error.message})`);
   });
   // Listing tools reads no source, so the server needs no accounting, changes or signed-in person here.
-  const server = hostedMcp(undefined, undefined, undefined, AbortSignal.timeout(10_000), () => {}, 0);
+  const server = hostedMcp(undefined, undefined, undefined, AbortSignal.timeout(10_000), () => {}, 0,
+    includeCatalogueChanges ? { inventory: true } : undefined);
   const client = new Client({ name: "copilot-package", version: "1" });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
@@ -122,7 +123,8 @@ export function zip(files) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values } = parseArgs({ options: { host: { type: "string" }, "app-id": { type: "string" },
     "registration-id": { type: "string" }, version: { type: "string", default: "1.0.0" }, out: { type: "string" },
-    "new-app-id": { type: "boolean" }, "developer-name": { type: "string" }, "website-url": { type: "string" },
+    "new-app-id": { type: "boolean" }, "with-changes": { type: "boolean" }, finance: { type: "boolean" },
+    "developer-name": { type: "string" }, "website-url": { type: "string" },
     "privacy-url": { type: "string" }, "terms-url": { type: "string" } } });
   if (values["new-app-id"]) {
     process.stdout.write(`${randomUUID()}\n`);
@@ -131,7 +133,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     // Unset options are dropped so the defaults in copilotPackage still apply.
     const developer = Object.fromEntries(Object.entries({ name: values["developer-name"], websiteUrl: values["website-url"],
       privacyUrl: values["privacy-url"], termsOfUseUrl: values["terms-url"] }).filter(([, value]) => value));
-    const tools = await serviceTools();
+    if (values.finance && values["with-changes"]) throw new Error("Choose one catalogue option.");
+    const advertised = await serviceTools(undefined, values["with-changes"]);
+    const tools = values.finance ? advertised.filter((tool) => !tool.name.startsWith("exact_")) : advertised;
     writeFileSync(values.out, zip(copilotPackage({ host: values.host, appId: values["app-id"],
       registrationId: values["registration-id"], tools, version: values.version, developer })));
     process.stdout.write(`Wrote ${values.out}. Upload it in the Teams admin center.\n`);

@@ -73,3 +73,6 @@ Azure Container Apps replicas behind its HTTPS ingress, in any Azure region.
 Shared state remains mandatory. Deployed health, permission checks, client
 qualification and owner acceptance are separate gates.
 The local legacy stdio catalogue remains independent and potentially writable.
+The hosted catalogue retains the legacy tool names for documented operations.
+It uses fixed projections and strict inputs. The legacy transport and generic
+API request are outside the hosted path.

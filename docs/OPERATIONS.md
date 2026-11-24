@@ -1,7 +1,8 @@
 # Operations
 
 Owner: Software Combined IT. Scope: the dedicated SCG Exact MCP app.
-The service can create customers, update customer details and create unprocessed sales invoices, nothing else.
+The service can create customers, update customer details and create unprocessed
+sales invoices. An enabled Copilot registration can use the optional [change catalogue](CATALOGUE.md#copilot-changes).
 Credential maintenance and internal state still require careful recovery.
 
 ## Normal operation
@@ -52,6 +53,10 @@ They reject changed, repeated, or unsafe source continuations.
 A failed continuation requires a fresh query.
 
 Logs contain request ID, route label, outcome, status, and duration.
+Catalogue changes check the company, the person's active connection and the
+current record before sending. They check the result by reading back the record
+when Exact supplies a known target. An identical request is held for ten minutes
+after an attempt. Check Exact before trying again if the outcome is uncertain.
 A failed request can add a fixed detail label, such as `connect:identity:reauth_required`.
 The label names the failed step and error class. It never contains source data or error text.
 A request refused by the first host and HTTPS check is labelled `host:`, `proto:` or `target:` with the cleaned-up value received, for example `host:other.example.com`.

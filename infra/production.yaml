@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: SCG personal Exact read-only MCP production service with two-zone availability.
+Description: SCG personal Exact MCP production service with two-zone availability.
 Parameters:
   VpcId: { Type: 'AWS::EC2::VPC::Id' }
   VpcCidr: { Type: String, Description: CIDR of the selected VPC }
@@ -13,6 +13,7 @@ Parameters:
   ConfigSecretArn: { Type: String, NoEcho: true, Description: Existing Secrets Manager JSON configuration ARN. Never its value. }
   ConfigKeyArn: { Type: String, Description: KMS key ARN protecting the configuration secret }
   ExactAppId: { Type: String, Description: Dedicated SCG MCP Exact application ID matching the runtime secret }
+  CopilotCatalogueChanges: { Type: String, Default: 'false', AllowedValues: ['false', 'true'] }
   AppCallsPerMinute: { Type: Number, MinValue: 8, Description: Operator-approved shared app budget; no assumed Exact quota }
   DivisionCallsPerMinute: { Type: Number, MinValue: 1, Description: Budget within verified Exact app and division allowance }
   AppCallsPerDay: { Type: Number, MinValue: 8, Description: Operator-approved shared app daily budget }
@@ -212,6 +213,7 @@ Resources:
             - { Name: SCG_KMS_KEY_ARN, Value: !GetAtt DataKey.Arn }
             - { Name: SCG_CONFIG_SECRET_ARN, Value: !Ref ConfigSecretArn }
             - { Name: SCG_EXACT_APP_ID, Value: !Ref ExactAppId }
+            - { Name: SCG_COPILOT_CATALOGUE_CHANGES, Value: !Ref CopilotCatalogueChanges }
             - { Name: SCG_APP_CALLS_PER_MINUTE, Value: !Ref AppCallsPerMinute }
             - { Name: SCG_DIVISION_CALLS_PER_MINUTE, Value: !Ref DivisionCallsPerMinute }
             - { Name: SCG_APP_CALLS_PER_DAY, Value: !Ref AppCallsPerDay }

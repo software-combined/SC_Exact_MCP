@@ -42,6 +42,8 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
   const fake = { user: USER_A, currentDivision: 123456, denyDivision: false, tokenStatus: 200, tokenError: "invalid_grant",
     tokenDelay: 0, responseOverride: undefined as unknown, next: undefined as string | undefined, rowId: undefined as string | undefined,
     readOverride: undefined as ((url: URL, user: string) => { body: unknown; status?: number } | undefined) | undefined,
+    writeOverride: undefined as ((url: URL, method: string, user: string, body: unknown) =>
+      { body: unknown; status: number } | undefined) | undefined,
     readBarrier: undefined as Promise<void> | undefined, journals: [{ Code: "70", Description: "Sales", IsBlocked: false }] as unknown[],
     refuseChange: undefined as string | undefined, failChange: false, journalsNext: false, invoicesNext: false,
     customers: undefined as unknown[] | undefined, items: undefined as unknown[] | undefined };
@@ -73,10 +75,15 @@ export async function exactFixture(callback = "http://127.0.0.1:9999/exact/callb
     const user = access.get((req.headers.authorization ?? "").slice(7));
     if (!user) return send({ error: "unauthorized" }, 401);
     if (url.pathname === "/api/v1/current/Me") return send({ d: [{ UserID: user, CurrentDivision: fake.currentDivision, FullName: "Fictional user" }] });
-    if (req.method === "POST" || req.method === "PUT") {
+    if (req.method === "POST" || req.method === "PUT" || req.method === "DELETE") {
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(chunk);
-      calls[calls.length - 1].body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const raw = Buffer.concat(chunks).toString("utf8");
+      const body = raw ? JSON.parse(raw) : undefined;
+      calls[calls.length - 1].body = body;
+      const overridden = fake.writeOverride?.(url, req.method, user, body);
+      if (overridden?.status === 204) { res.writeHead(204); return res.end(); }
+      if (overridden) return send(overridden.body, overridden.status);
       if (fake.failChange) return send({ error: "fictional outage" }, 500);
       if (fake.refuseChange) return send({ error: { code: "", message: { lang: "", value: fake.refuseChange } } }, 400);
       if (req.method === "PUT") { res.writeHead(204); return res.end(); }

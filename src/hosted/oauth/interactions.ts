@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { ServiceError, type StateStore } from "../domain/identity.js";
 import { take, update } from "../storage/state.js";
 import { body, escapeHtml, html } from "../transport/http.js";
-import { consentRevision, type Broker } from "./broker.js";
+import type { Broker } from "./broker.js";
 
 interface Flow { uid: string; nonce: string }
 interface Candidate { subject: string; generation: number }
@@ -17,9 +17,10 @@ export class Interactions {
     const values = (req.headers.cookie ?? "").split(";").map((v) => v.trim()).filter((v) => v.startsWith("scg-exact="));
     return values.length === 1 ? values[0].slice("scg-exact=".length) : "";
   }
-  private async form(res: ServerResponse, uid: string, action: string, title: string, content: string, label: string, origins: string[]) {
+  private async form(res: ServerResponse, uid: string, action: string, title: string, content: string, label: string,
+    origins: string[], consentRevision?: number) {
     const nonce = random();
-    const payload: Form = { uid, action, ...(action === "consent" ? { consentRevision } : {}) };
+    const payload: Form = { uid, action, consentRevision };
     await this.store.write(`form:${nonce}`, { payload }, undefined, Date.now() + 600_000);
     html(res, title, `${content}<form method="post" action="/interaction/${encodeURIComponent(uid)}/${action}"><input type="hidden" name="nonce" value="${nonce}"><button>${escapeHtml(label)}</button></form>`, origins);
   }
@@ -54,15 +55,18 @@ export class Interactions {
     const clientId = String(details.params.client_id);
     const client = this.broker.config.clients.find((item) => item.client_id === clientId);
     if (!client) throw new ServiceError("denied", "Unknown client.", 400);
+    const consentRevision = this.broker.consentRevision(clientId);
     const origins = [this.broker.connections.source.origin, ...(client.redirect_uris?.map((uri) => new URL(uri).origin) ?? [])];
     if (req.method === "GET" && !action) {
       if (!accountId) return this.form(res, uid, "connect", "Connect Exact Online", "<p>Sign in with your own Exact account. You see only the companies and data that account can open.</p>", "Continue to Exact", origins);
       const connection = await this.broker.connections.active(accountId);
       if (candidate && candidate.value.generation !== connection.generation) throw new ServiceError("denied", "The connection changed. Start sign-in again.", 400);
       const prompt = details.prompt.name === "login" ? "confirm" : "consent";
+      const changes = this.broker.config.catalogueClientId === clientId ?
+        "Copilot can also create, update, book, send or delete Exact records within your permissions. Review each action before confirming it." : "";
       return this.form(res, uid, prompt, "Allow access",
-        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read company, customer, supplier, item, sales, purchase, ledger, banking and asset data? It can also create and update customers and create draft sales invoices. Your Exact permissions apply.</p><p class="note">Not you? Close this window and contact your IT team.</p>`,
-        "Allow access", origins);
+        `<p>Signed in to Exact as <strong>${escapeHtml(connection.displayName)}</strong>.</p><p>Allow ${escapeHtml(String(client.client_name ?? clientId))} to read company, customer, supplier, catalogue, sales, purchases, stock, assets, banking, ledger, VAT and document metadata? It can also create and update customers and create draft sales invoices. ${changes} Your Exact permissions apply.</p><p class="note">Not you? Close this window and contact your IT team.</p>`,
+        "Allow access", origins, consentRevision);
     }
     if (req.method !== "POST" || !action || !["connect", "confirm", "consent"].includes(action)) {
       throw new ServiceError("invalid_input", "Unsupported interaction action.", 400);

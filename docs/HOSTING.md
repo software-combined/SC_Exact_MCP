@@ -91,7 +91,8 @@ Exact requires the callback URI to match exactly.
 The service validates identity through the fixed `current/Me` endpoint.
 The immutable user ID and region define the personal subject.
 The app needs read access, plus write access to customers and sales invoices for the change tools.
-The service itself limits changes to its three fixed change tools.
+The default service limits changes to three fixed tools. To enable more for
+an approved Copilot pilot, see the [change catalogue](CATALOGUE.md#copilot-changes).
 Source access still depends on the Exact user and app permissions.
 
 ## Register three AI clients

@@ -154,6 +154,10 @@ The finance release asks each person to approve the expanded reads when they rec
 Keep your existing app ID and OAuth registration. Complete the
 [finance checks](QUALIFICATION.md#finance-reads) before wider rollout.
 
+For a smaller finance package, add `--finance` to the package command. The
+default package adds the named BoostU reads. To pilot the wider write catalogue,
+see [Copilot changes](CATALOGUE.md#copilot-changes).
+
 ## If something goes wrong
 
 - The deploy command stops with a message: fix the cause, then run it again. If the very first deploy failed, first delete the failed stack in the CloudFormation console. Its settings secret, key and table stay behind on purpose; delete them too if you start over.

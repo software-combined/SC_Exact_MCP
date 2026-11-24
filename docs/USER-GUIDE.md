@@ -121,7 +121,9 @@ If a change fails or you get no clear answer, it may still have been made. Check
 
 You can change only what your own Exact account is allowed to change.
 A draft sales invoice is not booked or sent. Check it and process it in Exact yourself.
-The assistant cannot delete records, book entries, send invoices or make payments.
+If IT enables the wider Copilot package, it adds more operations, including
+some deletes and sales invoice booking. Review the company, record and effect on
+the confirmation before you continue. See the [supported actions](CATALOGUE.md).
 
 ## If something goes wrong
 

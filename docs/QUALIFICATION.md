@@ -29,33 +29,30 @@ Actual SDK transport tests and the dependency audit cover this change.
 `oidc-provider` is pinned at 9.15.0 for protocol and interaction handling.
 The repository does not implement OAuth security through a custom token shell.
 
-## Agent 57 build analysis
+## MCP server controls
 
 The outcome is bounded staff lookup through personal Exact permissions.
 Software Combined IT owns the service and credential effects.
 The hosted path coexists with the legacy CLI because existing local callers need it.
 It never imports the legacy broad catalogue.
 
-The service is deterministic and has no model, paid model call, or autonomous loop.
-Compatibility tier: T1 for business reads; the three change tools are bounded writes with the controls below.
-Applicable tool profiles are R, external untrusted content, and L, bounded result size.
+The service follows the MCP server method. It is deterministic and has no model,
+paid model call, or autonomous loop. Each tool uses a bounded request and result.
 Credential rotation also has harmful replay and interruption risks.
 Shared conditional exchange state handles those internal maintenance effects.
 
-K1 to K10 map to the typed schemas, fixed adapter, authenticated broker,
-safe errors, bounded pages, shared budgets, generation checks, metadata logs, and contract version.
-The named hosted tests verify their local enforcement.
+Hosted tests verify typed schemas, the fixed adapter, the authenticated broker,
+safe errors, bounded pages, shared budgets, generation checks and metadata logs.
 The [operations guide](OPERATIONS.md) owns numeric call, time, payload, and concurrency limits.
 
-Three business write tools exist: create customer, update customer, and create an unprocessed sales invoice.
-Their controls are fixed resources and fields, non-read-only tool markers for client permission settings,
-Exact's own permissions, and no automatic retry.
+The default tools can create or update a customer and create an unprocessed sales invoice.
+An explicitly configured Copilot registration can also access the named
+catalogue writes. The expanded grant requires consent. All writes use fixed
+resources and fields, client permission markers, Exact permissions and no automatic retry.
 Local tests cover the exact requests sent, Exact refusals, and an unknown outcome.
 They also prove that an unclear customer or item name sends no change.
-No send, book, pay, or delete operation exists. Reassess before adding one.
-Delegated-agent and broad-autonomy controls are inapplicable because the service contains neither capability.
-Reassess them before introducing a model or dynamic orchestration.
-Paid-operation allowance is zero because no paid AI (artificial intelligence), enrichment, or reveal call exists.
+Qualify the optional writes in a test company using the
+[Copilot change checks](CATALOGUE.md#copilot-changes).
 
 The shared table is needed for two replicas and rotating credentials.
 Process-local state cannot serialise independent tasks or survive a restart.
@@ -63,9 +60,8 @@ The app-wide gate protects code exchanges before source identity is known.
 Software Combined IT owns recovery and its app-wide reauthentication effect.
 Reassess the design if Exact provides a trustworthy identity before token exchange.
 
-Source-qualified, model-qualified, runtime-verified, and owner-accepted are separate states.
-Scripted local tests cannot establish model judgement or human acceptance.
-No blanket Agent 57 compliance claim is made for a deployed service.
+Source checks, deployed checks, client qualification and owner acceptance are
+separate gates.
 
 ## Live qualification runbook
 

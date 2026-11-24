@@ -6,9 +6,8 @@ import type { Connections } from "../runtime/connections.js";
 import type { Budgets } from "../runtime/budgets.js";
 import { providerAdapter } from "./adapter.js";
 
-export interface BrokerConfig { origin: string; clients: ClientMetadata[]; jwks: JWKS; cookieKeys: string[] }
+export interface BrokerConfig { origin: string; clients: ClientMetadata[]; jwks: JWKS; cookieKeys: string[]; catalogueClientId?: string }
 export interface GrantBinding { subject: string; clientId: string; generation: number; consentRevision: number }
-export const consentRevision = 2;
 const claims = z.object({ sub: z.string(), client_id: z.string(), grant_id: z.string(),
   connection_generation: z.number().int().positive(), scope: z.literal("exact.read") });
 
@@ -82,9 +81,13 @@ export class Broker {
     // Library events carry sensitive objects. Log only the outer request outcome.
     this.provider.on("server_error", () => {});
   }
+  consentRevision(clientId: string): number {
+    return clientId === this.config.catalogueClientId ? 4 : 3;
+  }
   async binding(grantId: string): Promise<GrantBinding> {
     const binding = await this.store.read<GrantBinding>(`grant-binding:${grantId}`);
-    if (!binding || binding.value.consentRevision !== consentRevision || await this.store.read(`oidc-revoked:${grantId}`)) {
+    if (!binding || binding.value.consentRevision !== this.consentRevision(binding.value.clientId) ||
+      await this.store.read(`oidc-revoked:${grantId}`)) {
       throw new ServiceError("denied", "This client grant is no longer current. Authorize again.", 401);
     }
     return binding.value;
@@ -114,7 +117,8 @@ export class Broker {
     grant.addOIDCScope("openid exact.read");
     grant.addResourceScope(this.resource, "exact.read");
     const id = await grant.save();
-    const binding: GrantBinding = { subject: accountId, clientId, generation: connection.generation, consentRevision };
+    const binding: GrantBinding = { subject: accountId, clientId, generation: connection.generation,
+      consentRevision: this.consentRevision(clientId) };
     if (!await this.store.write(`grant-binding:${id}`, binding, undefined, Date.now() + 2_592_000_000)) {
       throw new ServiceError("unavailable", "Could not persist consent.");
     }
