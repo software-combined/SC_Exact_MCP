@@ -7,7 +7,8 @@ import type { Budgets } from "../runtime/budgets.js";
 import { providerAdapter } from "./adapter.js";
 
 export interface BrokerConfig { origin: string; clients: ClientMetadata[]; jwks: JWKS; cookieKeys: string[] }
-export interface GrantBinding { subject: string; clientId: string; generation: number }
+export interface GrantBinding { subject: string; clientId: string; generation: number; consentRevision: number }
+export const consentRevision = 2;
 const claims = z.object({ sub: z.string(), client_id: z.string(), grant_id: z.string(),
   connection_generation: z.number().int().positive(), scope: z.literal("exact.read") });
 
@@ -64,7 +65,12 @@ export class Broker {
         if (!("grantId" in token) || !token.grantId || !("accountId" in token) || !token.accountId) {
           throw new errors.InvalidGrant("A personal grant is required.");
         }
-        const binding = await this.binding(token.grantId);
+        const binding = await this.binding(token.grantId).catch((error: unknown) => {
+          if (error instanceof ServiceError && error.status === 401) {
+            throw new errors.InvalidGrant("Authorize this client again.");
+          }
+          throw error;
+        });
         if (binding.subject !== token.accountId || binding.clientId !== token.clientId) throw new errors.InvalidGrant();
         await connections.authorize({ ...binding, grantId: token.grantId });
         return { grant_id: token.grantId, connection_generation: binding.generation };
@@ -78,8 +84,8 @@ export class Broker {
   }
   async binding(grantId: string): Promise<GrantBinding> {
     const binding = await this.store.read<GrantBinding>(`grant-binding:${grantId}`);
-    if (!binding || await this.store.read(`oidc-revoked:${grantId}`)) {
-      throw new ServiceError("denied", "This client grant is expired or revoked. Authorize again.", 401);
+    if (!binding || binding.value.consentRevision !== consentRevision || await this.store.read(`oidc-revoked:${grantId}`)) {
+      throw new ServiceError("denied", "This client grant is no longer current. Authorize again.", 401);
     }
     return binding.value;
   }
@@ -108,7 +114,7 @@ export class Broker {
     grant.addOIDCScope("openid exact.read");
     grant.addResourceScope(this.resource, "exact.read");
     const id = await grant.save();
-    const binding: GrantBinding = { subject: accountId, clientId, generation: connection.generation };
+    const binding: GrantBinding = { subject: accountId, clientId, generation: connection.generation, consentRevision };
     if (!await this.store.write(`grant-binding:${id}`, binding, undefined, Date.now() + 2_592_000_000)) {
       throw new ServiceError("unavailable", "Could not persist consent.");
     }

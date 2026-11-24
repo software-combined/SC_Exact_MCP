@@ -84,14 +84,23 @@ Start by finding your companies, then ask about one company at a time:
 > Show sales invoice 20260001 in company 123456.
 >
 > Which receivables for Fictional Trading are more than 30 days overdue in company 123456?
+>
+> Which supplier invoices are due by Friday? Show their approval status and amounts in transit.
+>
+> Show the payment status and proposed date for supplier invoice 42.
+>
+> Which journals are still open for financial year 2026, period 3? Show the processed ledger lines for account 8000.
 
-You need to give only the company. Give a name, code, city or date if you know it. You do not need an ID.
-If a name matches more than one customer or item, the assistant shows the matches. Choose one and ask again.
+Give the company and the date, period or record you want to check. The assistant
+can look up a supplier or invoice ID. If several records match, choose one.
 
 Check three things in every answer: the company, the currency, and the time of the lookup.
 
 - Long lists come one page at a time. Ask for "the next page" to see more.
-- A page is not a complete total. Receivables are what customers owe now, not on a past date.
+- Check that you have every page before you use the figures for a report. Receivables and payables show what is outstanding now.
+- When checking a payment, confirm the bank statement before treating an Exact payment status as settlement.
+- Supplier bank account numbers show only their last four characters. Confirm payment instructions in Exact.
+- The asset register shows investment values and depreciation start dates. Use Exact for calculated depreciation totals and last depreciation dates.
 - The assistant can make mistakes. For important decisions, check the figures in Exact.
 
 ## Make changes

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Query } from "../domain/contracts.js";
+import { currency } from "../domain/read-fields.js";
 import { matchPlan, plan, type MatchKind, type ReadPlan } from "./query-plan.js";
 import { pickMatch } from "./resolve.js";
 import { exactUserSchema, ServiceError, type Region, type SourceTokens } from "../domain/identity.js";
@@ -12,6 +13,8 @@ const origins: Record<Region, string> = { nl: "https://start.exactonline.nl", be
   es: "https://start.exactonline.es", com: "https://start.exactonline.com" };
 const meSchema = z.object({ UserID: exactUserSchema, CurrentDivision: z.number().int().positive(),
   FullName: z.string().max(200) });
+const supplierProof = z.object({ d: z.object({ ID: z.guid(), IsSupplier: z.literal(true) }) });
+const relationBank = z.object({ Account: z.guid(), Type: z.literal("A") });
 
 export interface SourceConfig { region: Region; appId: string; appSecret: string; callback: string }
 export type SourceRequest = <T>(read: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal) => Promise<T>;
@@ -158,14 +161,55 @@ export class ExactSource {
     return pickMatch(kind, text, division, page.rows, strict);
   }
   async read(query: Query, division: number, token: string, signal: AbortSignal, continuation?: string) {
-    const read = plan(query, this.config.region);
+    if (query.operation === "invoice_lines") return this.invoiceLines(query, division, token, signal, continuation);
+    const supplierId = query.operation === "supplier_bank_info" ? query.input.supplierId.toLowerCase() : undefined;
+    if (supplierId !== undefined) {
+      const accountUrl = this.url(division, { resource: "crm/Accounts", select: "ID,IsSupplier", key: supplierId });
+      const account = supplierProof.safeParse(await this.get(accountUrl, token, signal));
+      if (!account.success || account.data.d.ID.toLowerCase() !== supplierId) {
+        throw new ServiceError("denied", "The account could not be confirmed as a supplier in this company.", 403);
+      }
+    }
+    const result = await this.readPlan(plan(query, this.config.region), division, token, signal, continuation);
+    if (supplierId !== undefined) {
+      for (const row of result.rows) {
+        const bank = relationBank.safeParse(row);
+        if (!bank.success || bank.data.Account.toLowerCase() !== supplierId) {
+          throw new ServiceError("unavailable", "Exact returned bank details outside the supplier lookup.");
+        }
+      }
+    }
+    return result;
+  }
+  private async invoiceLines(query: Extract<Query, { operation: "invoice_lines" }>, division: number,
+    token: string, signal: AbortSignal, continuation?: string) {
+    const id = query.input.invoiceId.toLowerCase();
+    const sales = query.input.kind === "sales";
+    const key = sales ? "InvoiceID" : "EntryID";
+    const { rows } = await this.readPlan({ resource: sales ? "salesinvoice/SalesInvoices" : "purchaseentry/PurchaseEntries",
+      select: `${key},Currency`, key: id }, division, token, signal);
+    const header = z.object({ [key]: z.guid(), Currency: currency }).safeParse(rows[0]);
+    if (!header.success || header.data[key].toLowerCase() !== id) {
+      throw new ServiceError("unavailable", "Exact did not confirm this invoice's currency.");
+    }
+    const result = await this.readPlan(plan(query, this.config.region), division, token, signal, continuation);
+    const lineSchema = z.looseObject({ [key]: z.guid() });
+    return { ...result, rows: result.rows.map((row) => {
+      const line = lineSchema.safeParse(row);
+      if (!line.success || line.data[key].toLowerCase() !== id) {
+        throw new ServiceError("unavailable", "Exact returned a line outside the requested invoice.");
+      }
+      return { ...line.data, InvoiceCurrency: header.data.Currency };
+    }) };
+  }
+  private async readPlan(read: ReadPlan, division: number, token: string, signal: AbortSignal, continuation?: string) {
     const base = this.url(division, read);
     const url = continuation ? this.continuation(base, continuation) : base;
     const raw = await this.get(url, token, signal);
     if (read.key) {
       const d = raw && typeof raw === "object" && "d" in raw ? raw.d : undefined;
       if (!d || typeof d !== "object" || Array.isArray(d)) throw new ServiceError("unavailable", "Exact returned an invalid invoice.");
-      return { rows: [d] };
+      return { rows: [d], next: undefined };
     }
     const result = rowsEnvelope(raw);
     if (result.rows.length > 100) throw new ServiceError("unavailable", "Exact page exceeds the safe row bound. Narrow the query.");

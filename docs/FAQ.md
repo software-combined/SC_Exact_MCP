@@ -25,19 +25,21 @@ The service checks access and returns permitted records. The AI assistant prepar
 
 ## What can it read?
 
-The service can find companies, search customers, look up sales invoices and read current receivables. Receivables are amounts customers still owe.
+The service can find companies, customers, suppliers, invoices and invoice lines.
+It can read ledger lines, period balances, journal status, bank statement entries,
+current receivables and payables, Exact payment status and fixed asset records.
+Ask IT if the finance tools are available on your server and in your Copilot package.
+Supplier bank reads show the holder, BIC and the last four characters of the
+account number. Confirm payment instructions in Exact.
 
-Each request returns a limited page and says whether more results are available. Records can change between pages. The service does not calculate complete totals or historical receivables balances. Check the company, currency, retrieval time and whether the results are complete.
+Each request returns a limited page and says whether more results are available.
+Records can change between pages. Check the company, currency, retrieval time and
+whether the results are complete.
 
 ## Can it change my accounts?
 
 It can make three kinds of change: create a customer, change a customer's details, and create a draft sales invoice.
 It cannot delete records, book entries, send invoices or make payments. The service enforces this list; no other change is possible through it.
-
-Exact checks that your own account may make each change. Whether your AI assistant asks before a change depends on its tool-permission settings, as for any connected tool.
-The service sends each change once and never retries it on its own. If the connection drops during a change, you may get no answer at all. Check Exact before you ask again.
-
-A draft sales invoice is not booked or sent. A person checks and processes it in Exact.
 
 ## Who can see my information?
 

@@ -67,6 +67,10 @@ describe("self-host kit", () => {
     const packaged = Object.fromEntries(plugin.runtimes[0].spec.mcp_tool_description.tools.map((tool: { name: string; annotations: { readOnlyHint: boolean } }) =>
       [tool.name, tool.annotations.readOnlyHint]));
     expect(packaged).toMatchObject({ company_discovery: true, create_customer: false, update_customer: false, create_draft_sales_invoice: false });
+    for (const name of ["transaction_lines", "supplier_bank_info", "assets", "open_payables", "payment_status", "bank_entries",
+      "reporting_balances", "invoice_lines", "purchase_entries", "journal_status", "supplier_search", "gl_accounts"]) {
+      expect(packaged[name], name).toBe(true);
+    }
     expect(JSON.parse(files["declarativeAgent.json"].toString()).instructions).not.toMatch(/read-only/i);
     expect(() => copilotPackage({ host: "https://bad", appId, registrationId: "r", tools })).toThrow(/bare host/);
     expect(() => copilotPackage({ appId, registrationId: "r", tools })).toThrow(/bare host/);

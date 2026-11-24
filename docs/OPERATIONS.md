@@ -20,8 +20,9 @@ Source JSON is limited to 512,000 bytes.
 Structured output that the AI model can see is limited to 64,000 bytes.
 
 A normal company discovery makes one source read.
-A customer, invoice, or receivables query makes two source reads.
+A normal division-scoped query makes two source reads.
 The first read confirms the company and its source metadata.
+A supplier bank query makes one more read to verify the account is a supplier.
 A customer or item name instead of an ID adds one lookup read of at most 11 rows for each name, on every page.
 A change can name at most 5 different items. If its lookups do not finish before the send cut-off, nothing is changed.
 A change uses a name only when it equals the full name or code of one record. A lookup reads at most 11 rows. If more than 10 match, it picks no record.

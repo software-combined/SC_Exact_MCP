@@ -3,6 +3,9 @@
 Owner: Software Combined IT. Source review date: 17/11/2026.
 Status: deployed to production; Microsoft 365 Copilot pilot passing for one person; second-person check, other AI clients and staff acceptance remain pending.
 
+The finance additions have local simulated coverage. Live qualification of the
+expanded catalogue, including the updated Copilot package, is pending.
+
 ## Local evidence
 
 Run `npm run verify` for the source contract, import boundaries, line limits,
@@ -76,7 +79,7 @@ Never record financial rows, source tokens, authorization codes, or raw error pa
 
 1. Verify the AWS target, operator identity, region, and approved production scope.
 2. Verify the deployed revision and immutable image digest.
-3. Read back HTTPS health, issuer metadata, resource metadata, and the eight tools.
+3. Read back HTTPS health, issuer metadata, resource metadata, and the tool list for the reviewed revision. Compare the Copilot package against the tools it uses.
 4. Confirm S256, exact callbacks, fixed audience, and disabled public registration.
 5. Sign in with the approved first test user through the dedicated MCP app.
 6. Confirm the displayed Exact user before client consent.
@@ -103,6 +106,15 @@ Never probe a live business write to prove read-only behaviour.
 Keep live negative probes below Exact's documented error limits.
 Do not revoke another app or change the existing test user's roles and company access.
 
+### Finance reads
+
+1. Confirm the finance tool names appear in the deployed service and the pilot package.
+2. Confirm a pre-upgrade grant requires reconnection. Sign in with the person's own Exact account and show the revised consent.
+3. Compare a ledger line, an asset, an open payable and a payment status with Exact.
+4. Compare a foreign-currency invoice line with its invoice and company currencies.
+5. Confirm that only the last four characters of the supplier bank number appear.
+6. Repeat with a second person. Check that Exact denies a known finance resource or company outside that person's access.
+
 ## Remaining gates
 
 One checked AI client can support an approved guided pilot while other clients remain unqualified.
@@ -112,6 +124,7 @@ Wider staff release requires that proof and owner acceptance.
 | Gate | Current status |
 | --- | --- |
 | Source checks and local simulated outcome | Implemented; rerun on the exact reviewed candidate. |
+| Finance tools and updated Copilot package | Local fixtures passed. Live Exact values, Copilot and second-person access checks remain pending. |
 | Foundation change set, network, certificate, and image repository | Owner verified. |
 | Runtime change set and task-role IAM (identity and access management) | Passed: two healthy tasks in two zones; task-role probe passed with fictional data. |
 | Deployed HTTPS service and current health | Passed: health, issuer metadata, S256 only, no public registration. |

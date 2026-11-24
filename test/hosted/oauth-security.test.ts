@@ -7,6 +7,46 @@ const active: Awaited<ReturnType<typeof harness>>[] = [];
 afterEach(async () => { await Promise.all(active.splice(0).map((h) => h.close())); });
 
 describe("OAuth isolation and revocation", () => {
+  it("requires new consent before a grant or OAuth form from the previous release can authorize finance reads", async () => {
+    const h = await harness(); active.push(h);
+    const first = await authorization(h);
+    const old = (await exchange(h, first)).token;
+    const principal = await h.broker.authenticate(old.access_token);
+    const key = `grant-binding:${principal.grantId}`;
+    const binding = (await h.store.read<{ consentRevision?: number }>(key))!;
+    const { consentRevision: _oldRevision, ...previousBinding } = binding.value;
+    await h.store.write(key, previousBinding, binding.version, binding.expiresAt);
+    const calls = h.calls.length;
+    const refused = await fetch(`${h.origin}/mcp`, { method: "POST", headers: { Authorization: `Bearer ${old.access_token}` } });
+    expect(refused.status).toBe(401);
+    expect(h.calls).toHaveLength(calls);
+    const refresh = await fetch(`${h.origin}/token`, { method: "POST", headers: { Accept: "application/json" }, body: new URLSearchParams({
+      grant_type: "refresh_token", refresh_token: old.refresh_token, client_id: "claude", resource: `${h.origin}/mcp`,
+    }) });
+    expect(refresh.status).toBe(400);
+    expect(await refresh.json()).toMatchObject({ error: "invalid_grant" });
+
+    const send = first.browser.request.bind(first.browser);
+    let formStatus: number | undefined;
+    const previousForm = vi.spyOn(first.browser, "request").mockImplementation(async (url, init) => {
+      if (!url.endsWith("/consent") || !(init?.body instanceof URLSearchParams)) return send(url, init);
+      const formKey = `form:${init.body.get("nonce")}`;
+      const form = (await h.store.read<{ payload: { uid: string; action: string } }>(formKey))!;
+      const { uid, action } = form.value.payload;
+      await h.store.write(formKey, { payload: { uid, action } }, form.version, form.expiresAt);
+      const result = await send(url, init);
+      formStatus = result.status;
+      return result;
+    });
+    try { await expect(authorization(h, "claude", first.browser)).rejects.toThrow(); }
+    finally { previousForm.mockRestore(); }
+    expect(formStatus).toBe(400);
+    const fresh = await exchange(h, await authorization(h, "claude", first.browser));
+    const confirmed = await h.broker.authenticate(fresh.token.access_token);
+    expect(confirmed).toMatchObject({ subject: principal.subject, generation: principal.generation });
+    expect(confirmed.grantId).not.toBe(principal.grantId);
+    await expect(h.broker.authenticate(old.access_token)).rejects.toThrow();
+  });
   it("keeps same-person clients usable across independent browser consent and isolates a different person", async () => {
     const h = await harness(); active.push(h);
     const first = await authorization(h, "claude", new Browser(h.origin));

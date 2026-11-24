@@ -73,8 +73,10 @@ describe("official MCP SDK over real local HTTP", () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${h.origin}/mcp`), {
       requestInit: { headers: { Authorization: `Bearer ${token.access_token}` } } }));
     const tools = await client.listTools();
-    expect(tools.tools.map((v) => v.name).sort()).toEqual(["company_discovery", "create_customer", "create_draft_sales_invoice",
-      "customer_search", "invoice_lookup", "item_search", "receivables", "update_customer"]);
+    expect(tools.tools.map((v) => v.name).sort()).toEqual(["assets", "bank_entries", "company_discovery", "create_customer",
+      "create_draft_sales_invoice", "customer_search", "gl_accounts", "invoice_lines", "invoice_lookup", "item_search",
+      "journal_status", "open_payables", "payment_status", "purchase_entries", "receivables", "reporting_balances",
+      "supplier_bank_info", "supplier_search", "transaction_lines", "update_customer"]);
     for (const [name, args] of [["company_discovery", {}], ["customer_search", { division: 123456, name: "Fictional" }],
       ["invoice_lookup", { division: 123456, invoiceId: INVOICE }], ["receivables", { division: 123456 }]] as const) {
       const result = await client.callTool({ name, arguments: args });
