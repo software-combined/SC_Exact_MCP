@@ -2,16 +2,17 @@
 
 Owner: Software Combined IT. Status: source implementation; production deployment requires current verification.
 
-Hosted tools discover companies, list or search customers and sales items, list
-or look up sales invoices, and read receivables. Reads need only the company.
+Hosted tools discover companies and read customer, supplier, invoice, ledger,
+banking and asset data. Reads identify the company and use the tool's typed filters.
+Supplier bank reads confirm the supplier in that company and return only a masked
+account number. A payment status describes Exact's record of the payment.
 A customer or item name can replace its ID. A name that matches no record or
-several records stops the tool and lists the candidates; no change is sent.
-A change needs the full name or the code. A partial name is offered back, not changed. Three change tools create a customer, update
-customer details, and create an unprocessed sales invoice. No tool deletes,
-books, sends, or pays. Exact's own permission decides each change; each AI
-client's tool-permission settings decide whether it asks first. A change request
-is sent once and never retried. Personal Exact consent and
-current source permissions are the authority for every read. Pilot access follows
+several records stops the tool and lists the candidates.
+The default package can create or update a customer and create a draft sales invoice.
+An enabled Copilot client can also use named catalogue changes for supported Exact
+resources. Exact checks the person's permissions. Copilot handles interactive
+confirmation. The server checks the target and sends each change once.
+Personal Exact consent and current source permissions are the authority for every read. Pilot access follows
 approved source consent; the service never invents a tenant entitlement.
 Other integrations' app credentials and
 refresh tokens are excluded. Staff never receive a shared credential fallback.

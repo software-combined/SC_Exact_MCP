@@ -150,6 +150,13 @@ If you are not sure, build the package and compare its `plugin.json` with the on
 Give it a higher version each time, such as `--version 1.0.1`, then upload it in the Teams admin center.
 Never move back to a version older than the one you run; read [rollback and retained state](OPERATIONS.md#rollback-and-retained-state).
 If you upgrade from a read-only version to one with change tools, sign everyone in again once ([revoking all connections](OPERATIONS.md#abandoned-exchanges-and-revoking-all-connections)). Then everyone approves under the new wording, which includes changes.
+The finance release asks each person to approve the expanded reads when they reconnect.
+Keep your existing app ID and OAuth registration. Complete the
+[finance checks](QUALIFICATION.md#finance-reads) before wider rollout.
+
+For a smaller finance package, add `--finance` to the package command. The
+default package adds the named BoostU reads. To pilot the wider write catalogue,
+see [Copilot changes](CATALOGUE.md#copilot-changes).
 
 ## If something goes wrong
 

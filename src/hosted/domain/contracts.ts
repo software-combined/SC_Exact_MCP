@@ -1,13 +1,9 @@
 import { z } from "zod";
 import { ServiceError } from "./identity.js";
+import { amount, companySchema, currency, cursor, date, division, guid, label, page } from "./read-fields.js";
+import { financeDescriptions, financeInputs, financeOutputs } from "./finance-contracts.js";
 
-export const division = z.number().int().positive().max(2_147_483_647);
-const cursor = z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional();
-export const guid = z.guid();
-const date = z.iso.date();
-const amount = z.number().finite();
-const currency = z.string().regex(/^[A-Z]{3}$/);
-const label = z.string().max(200);
+export { companySchema, division, guid, projectionVersion } from "./read-fields.js";
 /** A customer name given instead of customerId; the service looks it up. */
 export const customerName = z.string().trim().min(2).max(80);
 const limit = z.number().int().min(1).max(100).optional();
@@ -40,6 +36,7 @@ export const inputs = {
     customerId: guid.optional(), customer: customerName.optional(), cursor })
     .refine((v) => atMostOne(v.customerId, v.customer), "Give at most one of customerId or customer.")
     .refine((v) => atMostOne(v.overdueBefore, v.overdueDays), "Give at most one of overdueBefore or overdueDays."),
+  ...financeInputs,
 } as const;
 export type Operation = keyof typeof inputs;
 export type Query = { [K in Operation]: { operation: K; input: z.infer<typeof inputs[K]> } }[Operation];
@@ -54,7 +51,6 @@ export function parseInput<T extends z.ZodType>(schema: T, value: unknown): z.in
   throw new ServiceError("invalid_input", field ? `${field}: ${issue.message}` : issue.message, 400);
 }
 
-export const companySchema = z.strictObject({ division, name: label, currency });
 export const customerSchema = z.strictObject({ id: guid, code: z.string().max(40), name: label });
 export const invoiceSchema = z.strictObject({ id: guid, invoiceNumber: z.number().int(), customer: label,
   invoiceDate: date, dueDate: date.nullable(), currency, amount: amount, status: z.number().int(),
@@ -65,19 +61,8 @@ export const receivableSchema = z.strictObject({ id: z.string().regex(/^\d+$/), 
   customer: label, invoiceNumber: z.number().int(), invoiceDate: date, dueDate: date.nullable(),
   currency, openAmount: amount });
 
-/** Version of the output fields. Cursors bind it, so a change invalidates older cursors. */
-export const projectionVersion = 3;
-const coverage = z.strictObject({ state: z.enum(["complete", "partial"]),
-  scope: z.literal("one live query; pages are not a snapshot or financial total"),
-  returned: z.number().int().min(0).max(100), nextCursor: cursor });
-const provenance = z.strictObject({ system: z.literal("Exact Online"), region: z.string(),
-  readAt: z.iso.datetime(), projectionVersion: z.literal(projectionVersion), contentTrust: z.literal("untrusted source data") });
-function page<T extends z.ZodType>(item: T) {
-  return z.strictObject({ company: companySchema.nullable(), source: provenance, coverage,
-    rows: z.array(item).max(100) });
-}
 export const outputs = { company_discovery: page(companySchema), customer_search: page(customerSchema),
-  invoice_lookup: page(invoiceSchema), item_search: page(itemSchema), receivables: page(receivableSchema) } as const;
+  invoice_lookup: page(invoiceSchema), item_search: page(itemSchema), receivables: page(receivableSchema), ...financeOutputs } as const;
 export type Page = z.infer<(typeof outputs)[Operation]>;
 
 const more = "Results are one page, not a total. For more, call again with the same filters and nextCursor as cursor.";
@@ -97,4 +82,5 @@ export const descriptions: Record<Operation, string> = {
   receivables: "List outstanding receivables (money customers still owe) in one company. Only division is required. Optional " +
     "filters: the customer name as customer (or customerId), and overdueDays (at least this many days past due) or overdueBefore " +
     "(due before a date). Amounts keep the row currency. These are current balances, not past balances. " + `${more} ${data}`,
+  ...financeDescriptions,
 };

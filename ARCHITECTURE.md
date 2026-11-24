@@ -17,6 +17,9 @@ escape hatch. Keyed invoice reads use a validated GUID and fixed resource.
 A customer or item name resolves to one ID through one fixed lookup of at most 11 rows. More than 10 matches picks no record.
 A change needs one record with that full name or code. A read also accepts one partial match.
 Any other name stops the tool and lists the candidates.
+The supplier bank read verifies one supplier with that person's token on each
+page. It checks the relationship on every returned row and masks the account
+number before the result reaches the client.
 
 Connection state is keyed by Exact application, region, and immutable Exact
 user ID. Client-specific grants point at that shared connection. Generation
@@ -70,3 +73,6 @@ Azure Container Apps replicas behind its HTTPS ingress, in any Azure region.
 Shared state remains mandatory. Deployed health, permission checks, client
 qualification and owner acceptance are separate gates.
 The local legacy stdio catalogue remains independent and potentially writable.
+The hosted catalogue retains the legacy tool names for documented operations.
+It uses fixed projections and strict inputs. The legacy transport and generic
+API request are outside the hosted path.

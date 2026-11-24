@@ -14,6 +14,7 @@ import { Connections } from "./runtime/connections.js";
 import { Cursors } from "./runtime/cursors.js";
 import { Accounting } from "./runtime/accounting.js";
 import { Changes } from "./runtime/changes.js";
+import { CatalogueChanges } from "./runtime/catalogue-changes.js";
 import { Broker } from "./oauth/broker.js";
 import { hostedApp } from "./transport/app.js";
 
@@ -46,7 +47,8 @@ async function main() {
   const accounting = new Accounting(connections, budgets, new Cursors(store, config.source.appId, config.source.region));
   const broker = new Broker(config.broker, store, connections, budgets.signIns());
   const changes = new Changes(connections, budgets);
-  const server = hostedApp(broker, accounting, changes, store, (record) => process.stdout.write(`${JSON.stringify(record)}\n`));
+  const catalogue = config.broker.catalogueClientId ? new CatalogueChanges(connections, budgets, store) : undefined;
+  const server = hostedApp(broker, accounting, changes, store, (record) => process.stdout.write(`${JSON.stringify(record)}\n`), catalogue);
   server.listen(env.PORT, "0.0.0.0", () => process.stdout.write('{"event":"listening"}\n'));
   installShutdown(server);
 }

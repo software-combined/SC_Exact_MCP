@@ -6,6 +6,7 @@ import type { Broker } from "../oauth/broker.js";
 import { Interactions } from "../oauth/interactions.js";
 import type { Accounting } from "../runtime/accounting.js";
 import type { Changes } from "../runtime/changes.js";
+import type { CatalogueChanges } from "../runtime/catalogue-changes.js";
 import { body, escapeHtml, headerLabel, html, json, targetProblem } from "./http.js";
 import { hostedMcp } from "./mcp.js";
 import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
@@ -13,7 +14,7 @@ import { SHUTDOWN_EVENT } from "../runtime/shutdown.js";
 export interface RequestLog { requestId: string; route: string; outcome: string; status: number; durationMs: number; detail?: string }
 
 export function hostedApp(broker: Broker, accounting: Accounting, changes: Changes, store: StateStore,
-  log: (record: RequestLog) => void = () => {}) {
+  log: (record: RequestLog) => void = () => {}, catalogueChanges?: CatalogueChanges) {
   const interactions = new Interactions(broker, store);
   const provider = broker.provider.callback();
   const draining = new AbortController();
@@ -76,7 +77,9 @@ export function hostedApp(broker: Broker, accounting: Accounting, changes: Chang
           if (Array.isArray(request)) throw new ServiceError("invalid_input", "Batch requests are not supported.", 400);
           transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
           // A change must start 18 s before the 25 s deadline: Exact's 15 s answer bound plus 3 s for bookkeeping.
-          server = hostedMcp(accounting, changes, principal, requestSignal, (label) => { detail = label; }, started + 7_000);
+          const catalogue = broker.config.catalogueClientId === principal.clientId ? catalogueChanges : undefined;
+          server = hostedMcp(accounting, changes, principal, requestSignal, (label) => { detail = label; },
+            started + 7_000, catalogue ? { service: catalogue, requestId } : undefined);
           await server.connect(transport);
           await transport.handleRequest(req, res, request);
         } finally {

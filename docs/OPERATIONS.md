@@ -1,7 +1,8 @@
 # Operations
 
 Owner: Software Combined IT. Scope: the dedicated SCG Exact MCP app.
-The service can create customers, update customer details and create unprocessed sales invoices, nothing else.
+The service can create customers, update customer details and create unprocessed
+sales invoices. An enabled Copilot registration can use the optional [change catalogue](CATALOGUE.md#copilot-changes).
 Credential maintenance and internal state still require careful recovery.
 
 ## Normal operation
@@ -20,8 +21,9 @@ Source JSON is limited to 512,000 bytes.
 Structured output that the AI model can see is limited to 64,000 bytes.
 
 A normal company discovery makes one source read.
-A customer, invoice, or receivables query makes two source reads.
+A normal division-scoped query makes two source reads.
 The first read confirms the company and its source metadata.
+A supplier bank query makes one more read to verify the account is a supplier.
 A customer or item name instead of an ID adds one lookup read of at most 11 rows for each name, on every page.
 A change can name at most 5 different items. If its lookups do not finish before the send cut-off, nothing is changed.
 A change uses a name only when it equals the full name or code of one record. A lookup reads at most 11 rows. If more than 10 match, it picks no record.
@@ -51,6 +53,10 @@ They reject changed, repeated, or unsafe source continuations.
 A failed continuation requires a fresh query.
 
 Logs contain request ID, route label, outcome, status, and duration.
+Catalogue changes check the company, the person's active connection and the
+current record before sending. They check the result by reading back the record
+when Exact supplies a known target. An identical request is held for ten minutes
+after an attempt. Check Exact before trying again if the outcome is uncertain.
 A failed request can add a fixed detail label, such as `connect:identity:reauth_required`.
 The label names the failed step and error class. It never contains source data or error text.
 A request refused by the first host and HTTPS check is labelled `host:`, `proto:` or `target:` with the cleaned-up value received, for example `host:other.example.com`.

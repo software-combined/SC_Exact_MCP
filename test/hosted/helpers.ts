@@ -6,12 +6,13 @@ import { Connections } from "../../src/hosted/runtime/connections.js";
 import { Cursors } from "../../src/hosted/runtime/cursors.js";
 import { Accounting } from "../../src/hosted/runtime/accounting.js";
 import { Changes } from "../../src/hosted/runtime/changes.js";
+import { CatalogueChanges } from "../../src/hosted/runtime/catalogue-changes.js";
 import type { Limits } from "../../src/hosted/runtime/budgets.js";
 import { hostedApp, type RequestLog } from "../../src/hosted/transport/app.js";
 import { exactFixture, listen, close, reservePort } from "./exact-fixture.js";
 export * from "./exact-fixture.js";
 
-export async function harness(limits?: Limits) {
+export async function harness(limits?: Limits, catalogueEnabled = false) {
   const port = await reservePort();
   const origin = `http://127.0.0.1:${port}`;
   const base = await exactFixture(`${origin}/exact/callback`, limits);
@@ -20,22 +21,26 @@ export async function harness(limits?: Limits) {
   const key = await exportJWK(privateKey);
   const config: BrokerConfig = { origin, jwks: { keys: [{ ...key, kid: "fixture-key", alg: "RS256", use: "sig" }] },
     cookieKeys: ["fictional-cookie-key-11111111111111111", "fictional-cookie-key-22222222222222222"],
+    catalogueClientId: catalogueEnabled ? "copilot" : undefined,
     clients: ["claude", "chatgpt", "copilot"].map((client_id) => ({ client_id, client_name: client_id,
       redirect_uris: [`http://127.0.0.1:9999/${client_id}/callback`], token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], scope: "openid exact.read" })) };
   const signIns = budgets.signIns();
   const broker = new Broker(config, store, connections, signIns);
   const logs: RequestLog[] = [];
-  let server = hostedApp(broker, accounting, changes, store, (record) => logs.push(record));
+  const catalogue = (active: Connections, brokerConfig: BrokerConfig) =>
+    brokerConfig.catalogueClientId ? new CatalogueChanges(active, budgets, store) : undefined;
+  let server = hostedApp(broker, accounting, changes, store, (record) => logs.push(record), catalogue(connections, config));
   await listen(server, port);
   return { ...base, origin, server, broker, config, logs,
-    restart: async () => {
+    restart: async (enableCatalogue = catalogueEnabled) => {
       await close(server);
       const nextConnections = new Connections(store, cipher, source);
       const nextAccounting = new Accounting(nextConnections, budgets, new Cursors(store, source.config.appId, "nl"));
-      const nextBroker = new Broker(config, store, nextConnections, signIns);
+      const nextConfig = { ...config, catalogueClientId: enableCatalogue ? "copilot" : undefined };
+      const nextBroker = new Broker(nextConfig, store, nextConnections, signIns);
       const nextChanges = new Changes(nextConnections, budgets);
-      server = hostedApp(nextBroker, nextAccounting, nextChanges, store, (record) => logs.push(record));
+      server = hostedApp(nextBroker, nextAccounting, nextChanges, store, (record) => logs.push(record), catalogue(nextConnections, nextConfig));
       await listen(server, port);
       return nextBroker;
     },

@@ -35,6 +35,20 @@ export class Budgets {
       if (hold && hold.value > this.now()) throw new ServiceError("limited", "Exact's shared retry cooldown is active. Retry later.", 429);
     }
   }
+  async available(division: number) {
+    const usage = (await this.store.read<Usage>(`budget:source:${this.app}`))?.value;
+    const now = this.now();
+    const remaining = (windows: Window[] | undefined, span: number, appLimit: number, divisionLimit: number) => {
+      const current = Math.floor(now / span);
+      const window = windows?.find((entry) => entry.period === current);
+      return { appRemaining: Math.max(0, appLimit - (window?.app ?? 0)),
+        divisionRemaining: Math.max(0, divisionLimit - (window?.divisions[division] ?? 0)),
+        resetsAt: new Date((current + 1) * span).toISOString() };
+    };
+    return { source: "Configured MCP budget" as const,
+      minute: remaining(usage?.minute, 60_000, this.limits.appCallsPerMinute, this.limits.divisionCallsPerMinute),
+      day: remaining(usage?.day, 86_400_000, this.limits.appCallsPerDay, this.limits.divisionCallsPerDay) };
+  }
   async call(division?: string, count = 1, through = this.now()) {
     await this.cooldown(division);
     // Admit every applicable limit in one CAS: a rejected division must not spend app allowance.

@@ -30,7 +30,11 @@ describe("Azure self-host kit", () => {
     const s = readSettings(JSON.stringify({ ...base, tags: { Owner: "it@example.com" } }));
     const params = templateParameters(s, { operatorObjectId: "00000000-0000-4000-8000-000000000000" });
     const declared = [...bicep.matchAll(/^param (\w+) [^=\n]+$/gm)].map((m) => m[1]);
-    expect(Object.keys(params).sort()).toEqual(declared.sort());
+    expect(Object.keys(params).sort()).toEqual([...declared, "copilotCatalogueChanges"].sort());
+    expect(params.copilotCatalogueChanges).toBe(false);
+    expect(templateParameters({ ...s, copilotCatalogueChanges: true }, {
+      operatorObjectId: "00000000-0000-0000-0000-000000000001",
+    }).copilotCatalogueChanges).toBe(true);
     expect(params).toMatchObject({ image: "", certificateId: "", appCallsPerMinute: 30, divisionCallsPerDay: 200,
       tags: { Project: "exact-mcp", ManagedBy: "exact-mcp-self-host", Owner: "it@example.com" } });
     expect(templateParameters(s, { operatorObjectId: "x", image: "fictional@sha256:0", certificateId: "c" }))

@@ -15,6 +15,7 @@ export const awsRegion = z.string().regex(/^[a-z]{2}(-[a-z]+)+-\d+$/);
 const common = z.object({ SCG_ENVIRONMENT: z.literal("production"),
   SCG_ORIGIN: httpsOrigin,
   SCG_EXACT_APP_ID: z.string().min(1).max(200), PORT: positive.default(8080),
+  SCG_COPILOT_CATALOGUE_CHANGES: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   SCG_APP_CALLS_PER_MINUTE: positive, SCG_DIVISION_CALLS_PER_MINUTE: positive,
   SCG_APP_CALLS_PER_DAY: positive, SCG_DIVISION_CALLS_PER_DAY: positive });
 const aws = common.extend({ SCG_CLOUD: z.literal("aws"), AWS_REGION: awsRegion,
@@ -51,10 +52,12 @@ export function configuration(env: ReturnType<typeof environment>, secret: unkno
   broker: BrokerConfig; source: SourceConfig; limits: Limits } {
   const parsed = secretSchema.parse(secret);
   if (parsed.exact.appId !== env.SCG_EXACT_APP_ID) throw new Error("Runtime secret does not match the dedicated Exact application.");
+  const catalogueClientId = env.SCG_COPILOT_CATALOGUE_CHANGES ?
+    parsed.clients.find((value) => value.client_name === "Microsoft 365 Copilot")?.client_id : undefined;
   return { source: { ...parsed.exact, callback: `${env.SCG_ORIGIN}/exact/callback` },
     broker: { origin: env.SCG_ORIGIN, clients: parsed.clients.map((value) => ({ ...value,
       grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], scope: "openid exact.read" })),
-    jwks: parsed.jwks, cookieKeys: parsed.cookieKeys },
+    jwks: parsed.jwks, cookieKeys: parsed.cookieKeys, catalogueClientId },
     limits: { appCallsPerMinute: env.SCG_APP_CALLS_PER_MINUTE, divisionCallsPerMinute: env.SCG_DIVISION_CALLS_PER_MINUTE,
       appCallsPerDay: env.SCG_APP_CALLS_PER_DAY, divisionCallsPerDay: env.SCG_DIVISION_CALLS_PER_DAY } };
 }

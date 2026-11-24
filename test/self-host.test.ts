@@ -38,10 +38,15 @@ describe("self-host kit", () => {
     expect(run.status).toBe(0);
     expect(run.stdout).not.toContain("fictional-exact-secret");
     expect(statSync(out).mode & 0o777).toBe(0o600);
-    const parsed = configuration(env, JSON.parse(readFileSync(out, "utf8")));
+    const secret = JSON.parse(readFileSync(out, "utf8"));
+    const parsed = configuration(env, secret);
     expect(parsed.source).toMatchObject({ appId: "fictional-app", appSecret: "fictional-exact-secret", region: "nl" });
     expect(parsed.broker.clients.map((c) => c.redirect_uris[0])).toEqual(["https://claude.ai/api/mcp/auth_callback",
       "https://chatgpt.com/connector_platform_oauth_redirect", "https://teams.microsoft.com/api/platform/v1.0/oAuthRedirect"]);
+    expect(parsed.broker.catalogueClientId).toBeUndefined();
+    const enabled = configuration({ ...env, SCG_COPILOT_CATALOGUE_CHANGES: true }, secret);
+    expect(enabled.broker.catalogueClientId).toBe(parsed.broker.clients.find((client) =>
+      client.client_name === "Microsoft 365 Copilot")?.client_id);
   });
 
   it("refuses to write configuration without an app ID or inside the repository", () => {
@@ -67,11 +72,29 @@ describe("self-host kit", () => {
     const packaged = Object.fromEntries(plugin.runtimes[0].spec.mcp_tool_description.tools.map((tool: { name: string; annotations: { readOnlyHint: boolean } }) =>
       [tool.name, tool.annotations.readOnlyHint]));
     expect(packaged).toMatchObject({ company_discovery: true, create_customer: false, update_customer: false, create_draft_sales_invoice: false });
+    for (const name of ["transaction_lines", "supplier_bank_info", "assets", "open_payables", "payment_status", "bank_entries",
+      "reporting_balances", "invoice_lines", "purchase_entries", "journal_status", "supplier_search", "gl_accounts"]) {
+      expect(packaged[name], name).toBe(true);
+    }
     expect(JSON.parse(files["declarativeAgent.json"].toString()).instructions).not.toMatch(/read-only/i);
     expect(() => copilotPackage({ host: "https://bad", appId, registrationId: "r", tools })).toThrow(/bare host/);
     expect(() => copilotPackage({ appId, registrationId: "r", tools })).toThrow(/bare host/);
     expect(() => copilotPackage({ host: "a.example", appId: "nope", registrationId: "r", tools })).toThrow(/GUID/);
     expect(() => copilotPackage({ host: "a.example", appId, registrationId: "r", tools: [] })).toThrow(/tool list is empty/);
+  });
+
+  it("packs native Copilot confirmations for the optional change catalogue", async () => {
+    const tools = await serviceTools(() => import("../src/hosted/transport/mcp.js"), true);
+    const files = unzip(zip(copilotPackage({ host: "exact-mcp.example.com", appId: "11111111-2222-4333-8444-555555555555",
+      registrationId: "fictional-registration", tools })));
+    const plugin = JSON.parse(files["plugin.json"].toString());
+    const packed = plugin.runtimes[0].spec.mcp_tool_description.tools;
+    expect(packed).toHaveLength(155);
+    expect(packed).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "exact_sales_invoice_print", annotations: expect.objectContaining({ readOnlyHint: false }) }),
+      expect.objectContaining({ name: "exact_record_delete", annotations: expect.objectContaining({ destructiveHint: true }) }),
+    ]));
+    expect(packed.find((tool: { name: string }) => tool.name === "exact_record_delete").inputSchema.properties).not.toHaveProperty("approval");
   });
 
   it("maps every required service template parameter from the foundation outputs and settings", () => {
@@ -80,6 +103,8 @@ describe("self-host kit", () => {
     const outputs = Object.fromEntries(["VpcId", "VpcCidr", "PublicSubnets", "PrivateSubnets", "CertificateArn",
       "ImageRepositoryArn", "ConfigSecretArn", "ConfigKeyArn"].map((key) => [key, `fictional-${key}`]));
     const params = serviceParameters(settings, outputs, "fictional-image");
+    expect(params.CopilotCatalogueChanges).toBe("false");
+    expect(serviceParameters({ ...settings, copilotCatalogueChanges: true }, outputs, "fictional-image").CopilotCatalogueChanges).toBe("true");
     const template = readFileSync(join(import.meta.dirname, "../infra/production.yaml"), "utf8");
     const declared = [...template.split("\nResources:")[0].matchAll(/^ {2}([A-Za-z]+):/gm)].map((m) => m[1]);
     expect(Object.keys(params).sort()).toEqual(declared.filter((name) => name !== "DesiredCount").sort());

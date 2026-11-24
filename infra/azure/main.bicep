@@ -15,6 +15,9 @@ param hostname string
 @description('Exact app ID; must match the private configuration.')
 param exactAppId string
 
+@description('Allow the configured Microsoft 365 Copilot client to use the optional write catalogue.')
+param copilotCatalogueChanges bool = false
+
 @description('Shared app calls per minute; keep below your Exact allowance.')
 @minValue(8)
 param appCallsPerMinute int
@@ -223,6 +226,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (!empty(image)) {
             { name: 'SCG_KEY_ID', value: key.properties.keyUriWithVersion }
             { name: 'SCG_CONFIG_SECRET_URL', value: '${vault.properties.vaultUri}secrets/runtime-config' }
             { name: 'SCG_EXACT_APP_ID', value: exactAppId }
+            { name: 'SCG_COPILOT_CATALOGUE_CHANGES', value: string(copilotCatalogueChanges) }
             { name: 'SCG_APP_CALLS_PER_MINUTE', value: string(appCallsPerMinute) }
             { name: 'SCG_DIVISION_CALLS_PER_MINUTE', value: string(divisionCallsPerMinute) }
             { name: 'SCG_APP_CALLS_PER_DAY', value: string(appCallsPerDay) }
